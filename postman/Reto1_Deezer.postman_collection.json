@@ -1,0 +1,32 @@
+{
+  "info": {
+    "name": "Reto 1 - API REST Deezer",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000" }],
+  "item": [
+    {
+      "name": "GET Buscar canciones",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/canciones?q=daft punk",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "canciones"],
+          "query": [{ "key": "q", "value": "daft punk" }]
+        }
+      }
+    },
+    {
+      "name": "GET Top global",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/canciones/top",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "canciones", "top"]
+        }
+      }
+    }
+  ]
+}
