@@ -1,0 +1,14 @@
+# Use this workspace to collaborate
+workspace:
+  id: 0072bd83-a38a-4d38-821e-cf6ace919dd2
+
+localResources:
+  collections:
+    - ../Reto1_Deezer.postman_collection.json
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa): a6c605fe-934e-4d43-823e-e75d42bec3ec
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy: 76823337-0144-48cd-812c-57b79f29dc68

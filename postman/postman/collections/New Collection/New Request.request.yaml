@@ -1,0 +1,4 @@
+$kind: http-request
+url: https://api.deezer.com/search
+method: GET
+order: 1000

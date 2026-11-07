@@ -1,0 +1,90 @@
+{
+  "info": {
+    "name": "Reto 2 - Favoritos (CRUD + API externa)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "favoritoId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "1. POST crear favorito",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "  pm.collectionVariables.set('favoritoId', pm.response.json().id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "favoritos"]
+        }
+      }
+    },
+    {
+      "name": "2. GET listar favoritos",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "favoritos"]
+        }
+      }
+    },
+    {
+      "name": "3. GET favorito por id",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "favoritos", "{{favoritoId}}"]
+        }
+      }
+    },
+    {
+      "name": "4. PUT actualizar notas",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notas\": \"Para entrenar\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "favoritos", "{{favoritoId}}"]
+        }
+      }
+    },
+    {
+      "name": "5. DELETE eliminar favorito",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "favoritos", "{{favoritoId}}"]
+        }
+      }
+    }
+  ]
+}

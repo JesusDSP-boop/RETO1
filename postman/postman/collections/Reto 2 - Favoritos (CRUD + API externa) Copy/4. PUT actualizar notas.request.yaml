@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/api/favoritos/{{favoritoId}}"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "notas": "Para entrenar"
+    }
+order: 4000

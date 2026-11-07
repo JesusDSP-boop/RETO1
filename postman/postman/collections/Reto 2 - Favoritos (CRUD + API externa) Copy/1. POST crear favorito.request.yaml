@@ -1,0 +1,26 @@
+$kind: http-request
+url: "{{baseUrl}}/api/favoritos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "id": 3135556,
+      "titulo": "Harder, Better, Faster, Stronger",
+      "artista": "Daft Punk",
+      "album": "Discovery",
+      "portada": "https://ejemplo.com/portada.jpg",
+      "duracion": 224,
+      "preview": "https://ejemplo.com/preview.mp3",
+      "enlace": "https://www.deezer.com/track/3135556"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 201) {
+        pm.collectionVariables.set('favoritoId', pm.response.json().id);
+      }
+    language: text/javascript
+order: 1000

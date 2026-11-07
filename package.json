@@ -1,15 +1,19 @@
 {
   "name": "reto1-reproductor-deezer",
-  "version": "1.0.0",
-  "description": "Reto 1 - Consumo de API REST (Deezer) con inyección de dependencias y pruebas unitarias",
+  "version": "2.0.0",
+  "description": "Ritmo: API REST con Deezer (Reto 1) y persistencia CRUD con TypeORM y SQLite (Reto 2)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "node --test"
   },
-  "engines": { "node": ">=18" },
+  "engines": { "node": ">=20" },
   "dependencies": {
     "axios": "^1.7.9",
-    "express": "^4.21.2"
+    "better-sqlite3": "^12.9.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "reflect-metadata": "^0.2.2",
+    "typeorm": "^0.3.20"
   }
 }
