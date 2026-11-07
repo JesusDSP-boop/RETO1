@@ -73,20 +73,31 @@ class FavoritosService {
     return guardado;
   }
 
-  async actualizar(idTexto, datos) {
+  async actualizar(idTexto, datos = {}) {
     const id = aIdValido(idTexto);
     const favorito = await this.repositorio.findOneBy({ id });
     if (!favorito) throw new ErrorApi(404, 'Favorito no encontrado');
 
-    const valor = datos?.notas;
-    if (valor !== null && typeof valor !== 'string') {
-      throw new ErrorApi(400, 'Envía el campo "notas" como texto o como null');
+    // Solo se pueden editar el nombre (titulo) y las notas. Basta con enviar uno de los dos.
+    const cambios = {};
+    if ('titulo' in datos) {
+      const titulo = typeof datos.titulo === 'string' ? datos.titulo.trim() : '';
+      if (!titulo) throw new ErrorApi(400, 'El nombre de la canción no puede estar vacío');
+      if (titulo.length > 120) throw new ErrorApi(400, 'El nombre no puede tener más de 120 caracteres');
+      cambios.titulo = titulo;
     }
-    const notas = textoOpcional(valor);
-    if (notas && notas.length > 500) {
-      throw new ErrorApi(400, 'Las notas no pueden tener más de 500 caracteres');
+    if ('notas' in datos) {
+      if (datos.notas !== null && typeof datos.notas !== 'string') {
+        throw new ErrorApi(400, 'Envía el campo "notas" como texto o como null');
+      }
+      const notas = textoOpcional(datos.notas);
+      if (notas && notas.length > 500) throw new ErrorApi(400, 'Las notas no pueden tener más de 500 caracteres');
+      cambios.notas = notas;
     }
-    this.repositorio.merge(favorito, { notas });
+    if (Object.keys(cambios).length === 0) {
+      throw new ErrorApi(400, 'Envía "titulo" y/o "notas" para actualizar');
+    }
+    this.repositorio.merge(favorito, cambios);
     return this.repositorio.save(favorito);
   }
 

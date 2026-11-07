@@ -60,13 +60,13 @@
       }
     },
     {
-      "name": "4. PUT actualizar notas",
+      "name": "4. PUT editar nombre y notas",
       "request": {
         "method": "PUT",
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"notas\": \"Para entrenar\"\n}"
+          "raw": "{\n  \"titulo\": \"Harder, Better (mi versión)\",\n  \"notas\": \"Para entrenar\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",

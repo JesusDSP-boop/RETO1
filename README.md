@@ -54,7 +54,7 @@ Pruebas (`test/musica.test.js`): formato correcto, manejo de errores y mock de d
 | POST | `/api/favoritos` | Guarda una canción (JSON del Reto 1) | 201, 400, 409 |
 | GET | `/api/favoritos` | Lista todos los favoritos | 200 |
 | GET | `/api/favoritos/:id` | Busca uno por su id | 200, 400, 404 |
-| PUT | `/api/favoritos/:id` | Actualiza las notas | 200, 400, 404 |
+| PUT | `/api/favoritos/:id` | Edita el nombre y/o las notas | 200, 400, 404 |
 | DELETE | `/api/favoritos/:id` | Elimina el registro y lo confirma | 200, 400, 404 |
 
 Cuerpo del POST (`id`, `titulo` y `artista` son obligatorios):
@@ -72,7 +72,7 @@ Cuerpo del POST (`id`, `titulo` y `artista` son obligatorios):
 }
 ```
 
-Cuerpo del PUT: `{ "notas": "Para entrenar" }`. Envía `null` para borrar las notas.
+Cuerpo del PUT (basta con un campo): `{ "titulo": "Mi versión", "notas": "Para entrenar" }`. El nombre no puede estar vacío (máximo 120 caracteres). Envía `"notas": null` para borrar las notas (máximo 500).
 
 Los errores tienen siempre el mismo formato: `{ "error": "mensaje" }`.
 
@@ -108,6 +108,15 @@ TypeORM → data/ritmo.sqlite   services/notificacionService.js
                               API externa (webhook.site)
 ```
 
+## Interfaz web del CRUD
+
+La página tiene dos secciones:
+
+- **Explorar:** busca canciones o mira el Top global. El corazón de cada canción la agrega a favoritos (POST) y, si ya era favorita, la quita (DELETE).
+- **Mis favoritas:** muestra las canciones guardadas (GET). Cada tarjeta permite reproducir, **editar** el nombre y las notas (PUT) y **eliminar** con confirmación (DELETE). El botón **Seleccionar** activa casillas para marcar varias canciones y eliminarlas de una vez.
+
+El panel «Ver última respuesta JSON», al final de la página, muestra el método, la ruta, el código de estado y el JSON de cada petición. Sirve para mostrar el CRUD funcionando sin abrir Postman.
+
 ## Evidencias para la entrega
 
 1. **Tabla generada por el ORM:** abre `data/ritmo.sqlite` con DB Browser for SQLite y captura la tabla `favoritos`. Opcional: cambia `logging: false` por `logging: true` en `src/database/dataSource.js` para ver en la consola el `CREATE TABLE` que genera TypeORM. Después vuelve a dejarlo en `false`.
@@ -126,7 +135,7 @@ src/routes/                         rutas del Reto 1 y del Reto 2
 src/controllers/                    traduce peticiones a respuestas HTTP
 src/services/                       reglas de negocio y llamadas externas
 src/errores.js                      error con código HTTP
-public/index.html                   página web del Reto 1
+public/index.html                   página web: explorar, favoritos y CRUD
 test/                               pruebas unitarias (Reto 1 y Reto 2)
 postman/                            colecciones de Postman
 ```

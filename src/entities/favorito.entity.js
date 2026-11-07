@@ -15,7 +15,7 @@ module.exports = new EntitySchema({
     duracion: { type: 'integer', nullable: true },
     preview: { type: 'varchar', nullable: true },
     enlace: { type: 'varchar', nullable: true },
-    notas: { type: 'text', nullable: true },                  // lo único que se edita con PUT
+    notas: { type: 'text', nullable: true },                  // editable con PUT (junto con titulo)
     creadoEn: { type: 'datetime', createDate: true },
     actualizadoEn: { type: 'datetime', updateDate: true },
   },

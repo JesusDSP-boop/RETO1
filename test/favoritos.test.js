@@ -189,3 +189,22 @@ test('Notificación: envía el JSON con POST a la URL configurada', async () => 
   assert.equal(enviado.url, 'https://ejemplo.com/notificar');
   assert.equal(enviado.cuerpo.titulo, 'X');
 });
+
+test('Actualizar: edita el nombre (título) y valida que no quede vacío', async () => {
+  const { controlador } = montar();
+  await controlador.crear({ body: cancion }, crearRes());
+
+  const ok = crearRes();
+  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '  Mi versión  ' } }, ok);
+  assert.equal(ok.codigo, 200);
+  assert.equal(ok.cuerpo.titulo, 'Mi versión');
+  assert.equal(ok.cuerpo.artista, cancion.artista);
+
+  const vacio = crearRes();
+  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '   ' } }, vacio);
+  assert.equal(vacio.codigo, 400);
+
+  const sinCampos = crearRes();
+  await controlador.actualizar({ params: { id: '1' }, body: {} }, sinCampos);
+  assert.equal(sinCampos.codigo, 400);
+});
