@@ -28,9 +28,15 @@ class DeezerService {
     return cuerpo.data.map(aCancion);
   }
 
-  async obtenerTop(limite = 12) {
-    const cuerpo = await this._pedir('/chart/0/tracks', { limit: limite });
+  // generoId = 0 es el ranking global; otro número es el ranking de ese género.
+  async obtenerTop(limite = 12, generoId = 0) {
+    const cuerpo = await this._pedir(`/chart/${generoId}/tracks`, { limit: limite });
     return cuerpo.data.map(aCancion);
+  }
+
+  async listarGeneros() {
+    const cuerpo = await this._pedir('/genre', {});
+    return cuerpo.data.map((g) => ({ id: g.id, nombre: g.name }));
   }
 
   async _pedir(ruta, params) {

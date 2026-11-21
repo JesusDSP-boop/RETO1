@@ -1,13 +1,19 @@
 {
   "name": "reto1-reproductor-deezer",
-  "version": "2.0.0",
-  "description": "Ritmo: API REST con Deezer (Reto 1) y persistencia CRUD con TypeORM y SQLite (Reto 2)",
+  "version": "2.2.0",
+  "description": "Ritmo: API REST con Deezer (Reto 1) y persistencia CRUD + catálogo con TypeORM y SQLite (Reto 2)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "catalogo:estado": "node scripts/catalogo.js estado",
+    "catalogo:obtener": "node scripts/catalogo.js obtener",
+    "catalogo:borrar": "node scripts/catalogo.js borrar",
+    "catalogo:reiniciar": "node scripts/catalogo.js reiniciar"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "axios": "^1.7.9",
     "better-sqlite3": "^12.9.0",

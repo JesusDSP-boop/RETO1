@@ -32,8 +32,8 @@ h1{margin:0;font-size:clamp(3.4rem,10vw,6rem);line-height:.88;font-weight:800;le
 .tab b{min-width:24px;padding:0 7px;border-radius:99px;background:var(--sol);color:var(--tinta);font-size:.85rem;text-align:center}
 main{max-width:1080px;margin:0 auto;padding:20px 24px}
 h2{margin:0 0 4px;font-size:1.6rem}
-#buscador{display:flex;gap:8px;max-width:520px;margin:12px 0 20px}
-#q{flex:1;min-width:0;padding:12px 14px;border:2px solid var(--tinta);border-radius:10px;background:var(--blanco)}
+#buscador,#buscador-cat{display:flex;gap:8px;max-width:520px;margin:12px 0 20px}
+#q,#q-cat{flex:1;min-width:0;padding:12px 14px;border:2px solid var(--tinta);border-radius:10px;background:var(--blanco)}
 .btn{padding:10px 18px;border:2px solid var(--tinta);border-radius:999px;background:none;font-weight:700}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .btn.pri{border-color:var(--azul);background:var(--azul);color:var(--blanco)}
@@ -75,6 +75,9 @@ ol,ul{margin:0;padding:0;list-style:none}
 details{margin-top:32px;padding-top:12px;border-top:2px solid var(--tinta)}
 summary{cursor:pointer;font-weight:700}
 pre{max-height:320px;overflow:auto;margin:12px 0 0;padding:12px;border-radius:8px;background:var(--tinta);color:#DDE1FF;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+progress{width:100%;height:10px;margin:0 0 16px;accent-color:var(--azul)}
+.paginas{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px}
+#cat-info{margin:0 0 10px}
 dialog{width:min(92vw,420px);padding:24px;border:0;border-radius:16px;background:var(--blanco);color:var(--tinta);box-shadow:0 24px 60px #0e103066}
 dialog::backdrop{background:#0e1030b3}
 dialog h2{margin-bottom:12px}
@@ -103,19 +106,32 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 </header>
 
 <nav class="tabs" aria-label="Secciones">
-  <button class="tab" type="button" data-vista="explorar" aria-pressed="true">Explorar</button>
+  <button class="tab" type="button" data-vista="catalogo" aria-pressed="true">Catálogo <b id="cont-cat">0</b></button>
   <button class="tab" type="button" data-vista="favoritos" aria-pressed="false">Mis favoritas <b id="cont-favs">0</b></button>
 </nav>
 
 <main>
-  <section id="vista-explorar">
-    <h2 id="titulo-lista">Top global</h2>
-    <form id="buscador" role="search">
-      <input id="q" type="search" placeholder="Artista o canción" aria-label="Buscar canciones" required>
+  <section id="vista-catalogo">
+    <div class="barra">
+      <h2>Catálogo</h2>
+      <div class="grupo">
+        <button class="btn pri" type="button" id="btn-obtener">Obtener todo</button>
+        <button class="btn oscuro" type="button" id="btn-reiniciar">Reiniciar</button>
+        <button class="btn pel" type="button" id="btn-borrar">Borrar todo</button>
+      </div>
+    </div>
+    <p id="cat-info" role="status"></p>
+    <progress id="cat-prog" hidden></progress>
+    <form id="buscador-cat" role="search">
+      <input id="q-cat" type="search" placeholder="Buscar en el catálogo guardado" aria-label="Buscar en el catálogo guardado">
       <button class="btn oscuro" type="submit">Buscar</button>
     </form>
-    <p id="estado" role="status"></p>
-    <ol id="lista"></ol>
+    <ol id="lista-cat"></ol>
+    <div class="paginas">
+      <button class="btn" type="button" id="cat-ant">Anterior</button>
+      <span id="cat-pag"></span>
+      <button class="btn" type="button" id="cat-sig">Siguiente</button>
+    </div>
   </section>
 
   <section id="vista-favoritos" hidden>
@@ -133,7 +149,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
     <div class="vacio" id="vacio" hidden>
       <h2>Aún no tienes favoritas</h2>
       <p>Toca el corazón en cualquier canción para guardarla aquí.</p>
-      <button class="btn pri" type="button" id="ir-explorar">Explorar canciones</button>
+      <button class="btn pri" type="button" id="ir-catalogo">Buscar en el catálogo</button>
     </div>
   </section>
 
@@ -162,6 +178,17 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
     <div class="acciones">
       <button class="btn" type="button" data-cerrar>Cancelar</button>
       <button class="btn pel" value="ok">Eliminar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-catalogo">
+  <form method="dialog">
+    <h2 id="dlg-titulo">Catálogo</h2>
+    <p id="dlg-texto"></p>
+    <div class="acciones">
+      <button class="btn" type="button" data-cerrar>Cancelar</button>
+      <button class="btn pel" value="ok" id="dlg-ok">Confirmar</button>
     </div>
   </form>
 </dialog>
@@ -230,33 +257,20 @@ async function api(url, opciones, mostrar = true) {
 const enviar = (metodo, cuerpo) => ({ method: metodo, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) });
 
 // ---------- estado ----------
-let canciones = [], favs = [], cola = [], actual = -1, modoSel = false, editando = null, porBorrar = [];
+let favs = [], cola = [], actual = -1, modoSel = false, editando = null, porBorrar = [];
 const seleccion = new Set();
 const clave = (c) => c.deezerId ?? c.id; // id de Deezer, venga de Explorar o de Favoritos
 const sonando = () => cola[actual];
 const esFav = (c) => favs.some((f) => f.deezerId === c.id);
 
-// ---------- Explorar (Reto 1) ----------
-async function buscar(url, titulo) {
-  $('#estado').textContent = 'Cargando…';
-  try {
-    canciones = await api(url);
-    $('#titulo-lista').textContent = titulo;
-    $('#estado').textContent = canciones.length ? '' : 'No encontramos canciones. Prueba con otro artista o título.';
-  } catch (error) {
-    canciones = [];
-    $('#estado').textContent = `No se pudo cargar la música: ${error.message}`;
-  }
-  pintarExplorar();
-}
-
-function pintarExplorar() {
-  $('#lista').replaceChildren(...canciones.map((c, i) => {
+// ---------- Lista de canciones (se usa en el Catálogo) ----------
+function pintarLista(destino, datos, desde = 0) {
+  destino.replaceChildren(...datos.map((c, i) => {
     const fav = esFav(c);
     const activa = sonando() && clave(sonando()) === c.id;
     return h('li', { class: 'fila' + (activa ? ' activa' : '') },
-      h('span', { class: 'num' }, i + 1),
-      h('button', { class: 'portada', type: 'button', disabled: !c.preview, 'aria-label': `Reproducir ${c.titulo} de ${c.artista}`, onclick: () => reproducir(canciones, i) },
+      h('span', { class: 'num' }, desde + i + 1),
+      h('button', { class: 'portada', type: 'button', disabled: !c.preview, 'aria-label': `Reproducir ${c.titulo} de ${c.artista}`, onclick: () => reproducir(datos, i) },
         h('img', { src: c.portada, alt: '', loading: 'lazy' }), icono('play')),
       h('span', { class: 'texto' }, h('strong', {}, c.titulo), h('span', {}, c.artista)),
       h('span', { class: 'dur' }, mmss(c.duracion)),
@@ -264,6 +278,92 @@ function pintarExplorar() {
         icono('corazon', fav)));
   }));
 }
+
+// ---------- Catálogo guardado en la base de datos ----------
+let catalogo = [], catPagina = 1, cargaActiva = false, temporizador = null;
+
+function pintarCatalogo() { pintarLista($('#lista-cat'), catalogo, (catPagina - 1) * 24); }
+
+async function cargarCatalogo() { // lista paginada que sale de la base de datos
+  try {
+    const q = encodeURIComponent($('#q-cat').value.trim());
+    const datos = await api(`/api/catalogo?pagina=${catPagina}&limite=24&q=${q}`);
+    catalogo = datos.canciones;
+    catPagina = datos.pagina;
+    $('#cat-pag').textContent = `Página ${datos.pagina} de ${datos.paginas}`;
+    $('#cat-ant').disabled = datos.pagina <= 1;
+    $('#cat-sig').disabled = datos.pagina >= datos.paginas;
+  } catch (error) {
+    catalogo = [];
+    aviso(error.message, true);
+  }
+  pintarCatalogo();
+}
+
+async function estadoCatalogo() { // total guardado y avance de la carga (consulta cada segundo mientras carga)
+  try {
+    const { total, carga } = await api('/api/catalogo/estado', undefined, false);
+    $('#cont-cat').textContent = total;
+    $('#cat-prog').hidden = !carga.activa;
+    if (carga.activa) { $('#cat-prog').max = carga.objetivo; $('#cat-prog').value = carga.guardadas; }
+    $('#cat-info').textContent = carga.activa ? `Descargando de Deezer: ${carga.guardadas} de ${carga.objetivo}…`
+      : carga.error ? `La última carga falló: ${carga.error}`
+      : total ? `${total} canciones guardadas en la base de datos.`
+      : 'El catálogo está vacío. Pulsa «Reiniciar» para descargar las 100 canciones iniciales.';
+    for (const id of ['#btn-obtener', '#btn-reiniciar', '#btn-borrar']) $(id).disabled = carga.activa;
+    clearTimeout(temporizador);
+    if (carga.activa) temporizador = setTimeout(estadoCatalogo, 1000);
+    else if (cargaActiva) {
+      aviso(carga.error ? 'La carga terminó con error' : 'Catálogo actualizado', !!carga.error);
+      if (!$('#vista-catalogo').hidden) await cargarCatalogo();
+    }
+    cargaActiva = carga.activa;
+  } catch (error) {
+    $('#cat-info').textContent = `No se pudo consultar el catálogo: ${error.message}`;
+  }
+}
+
+async function iniciarCarga(modo) { // POST /api/catalogo/cargar: responde 202 y sigue en segundo plano
+  try {
+    await api('/api/catalogo/cargar', enviar('POST', { modo }));
+    aviso(modo === 'reiniciar' ? 'Reinicio iniciado' : 'Descarga de la API iniciada');
+  } catch (error) {
+    aviso(error.message, true);
+  }
+  estadoCatalogo();
+}
+$('#btn-obtener').onclick = () => iniciarCarga('completo'); // POST /api/catalogo/cargar {"modo":"completo"}
+$('#btn-reiniciar').onclick = () => pedirAccionCatalogo('reiniciar');
+$('#btn-borrar').onclick = () => pedirAccionCatalogo('borrar');
+
+let accionCatalogo = null;
+function pedirAccionCatalogo(accion) { // ambas acciones borran datos, por eso piden confirmación
+  accionCatalogo = accion;
+  const reiniciar = accion === 'reiniciar';
+  $('#dlg-titulo').textContent = reiniciar ? 'Reiniciar catálogo' : 'Borrar catálogo';
+  $('#dlg-texto').textContent = reiniciar
+    ? 'Se borrará todo el catálogo y se volverán a descargar las 100 canciones iniciales. Tus favoritas no se tocan.'
+    : 'Se borrarán todas las canciones del catálogo. Tus favoritas no se tocan.';
+  $('#dlg-ok').textContent = reiniciar ? 'Reiniciar' : 'Borrar';
+  $('#dlg-catalogo').returnValue = '';
+  $('#dlg-catalogo').showModal();
+}
+$('#dlg-catalogo').addEventListener('close', async (e) => {
+  if (e.target.returnValue !== 'ok') return;
+  if (accionCatalogo === 'reiniciar') { await iniciarCarga('reiniciar'); return; }
+  try {
+    const r = await api('/api/catalogo', { method: 'DELETE' }); // DELETE /api/catalogo
+    aviso(`Catálogo borrado (${r.eliminadas} canciones)`);
+  } catch (error) {
+    aviso(error.message, true);
+  }
+  catPagina = 1;
+  await cargarCatalogo();
+  estadoCatalogo();
+});
+$('#buscador-cat').onsubmit = (e) => { e.preventDefault(); catPagina = 1; cargarCatalogo(); };
+$('#cat-ant').onclick = () => { catPagina -= 1; cargarCatalogo(); };
+$('#cat-sig').onclick = () => { catPagina += 1; cargarCatalogo(); };
 
 // ---------- Favoritos: CRUD (Reto 2) ----------
 async function cargarFavs() { // READ: lista todos
@@ -274,7 +374,7 @@ async function cargarFavs() { // READ: lista todos
   }
   for (const id of [...seleccion]) if (!favs.some((f) => f.id === id)) seleccion.delete(id);
   pintarFavs();
-  pintarExplorar();
+  pintarCatalogo();
 }
 
 async function alternarFav(c) { // CREATE (POST) si no existe, DELETE si ya era favorita
@@ -377,7 +477,7 @@ function reproducir(lista, i) {
   if (c.portada) $('#p-portada').src = c.portada;
   $('#p-titulo').textContent = c.titulo;
   $('#p-artista').textContent = c.artista;
-  pintarExplorar();
+  pintarCatalogo();
   pintarFavs();
 }
 const estadoBoton = (reproduciendo) => {
@@ -398,19 +498,15 @@ $('#barra').oninput = (e) => { audio.currentTime = e.target.value; };
 
 // ---------- eventos de la interfaz ----------
 function ir(vista) {
-  $('#vista-explorar').hidden = vista !== 'explorar';
+  $('#vista-catalogo').hidden = vista !== 'catalogo';
   $('#vista-favoritos').hidden = vista !== 'favoritos';
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.vista === vista)));
+  if (vista === 'catalogo') { cargarCatalogo(); estadoCatalogo(); }
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => ir(t.dataset.vista)));
-$('#ir-explorar').onclick = () => ir('explorar');
+$('#ir-catalogo').onclick = () => ir('catalogo');
 document.querySelectorAll('[data-cerrar]').forEach((b) => { b.onclick = () => b.closest('dialog').close('cancel'); });
 
-$('#buscador').onsubmit = (e) => {
-  e.preventDefault();
-  const q = $('#q').value.trim();
-  if (q) buscar(`/api/canciones?q=${encodeURIComponent(q)}`, `Resultados para “${q}”`);
-};
 $('#btn-sel').onclick = () => { modoSel = !modoSel; seleccion.clear(); pintarFavs(); };
 $('#btn-todas').onclick = () => {
   if (seleccion.size === favs.length) seleccion.clear(); else favs.forEach((f) => seleccion.add(f.id));
@@ -418,8 +514,9 @@ $('#btn-todas').onclick = () => {
 };
 $('#btn-borrar-sel').onclick = () => pedirBorrado(favs.filter((f) => seleccion.has(f.id)));
 
-buscar('/api/canciones/top', 'Top global');
+cargarCatalogo();
 cargarFavs();
+estadoCatalogo(); // si el servidor está descargando al arrancar, muestra el avance
 </script>
 </body>
 </html>

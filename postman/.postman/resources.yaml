@@ -4,11 +4,19 @@ workspace:
 
 localResources:
   collections:
-    - ../Reto1_Deezer.postman_collection.json
+    - ../Reto 1 - API REST Deezer
 
 # Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
 
 cloudResources:
   collections:
-    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa): a6c605fe-934e-4d43-823e-e75d42bec3ec
     ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy: 76823337-0144-48cd-812c-57b79f29dc68
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 2: 657ebb3c-df4d-484a-b04a-38a42dde5fdf
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 3: 7d5188d6-a0be-44ba-9c98-44fc6f1e6345
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 4: 2c6ec98f-bae9-46ec-b59d-2d9bc2c9a32d
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 5: 175f2c78-0d76-4cfc-86eb-dc21b08e3782
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 6: 7cf882ce-7853-4d7b-91cf-b280ae5bfa21
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 7: 51f2d7f4-811c-4888-8b93-117e37267cc8
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 8: e7a27d98-02d1-44ad-81eb-6e351b5647e5
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa) Copy 9: c4f5d85b-2fae-44b3-9b72-3c6652e7843a
+    ../postman/collections/Reto 2 - Favoritos (CRUD + API externa): 44cc908f-afb1-4d7d-9d86-4ee606fe8120

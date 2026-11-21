@@ -4,7 +4,7 @@ Lenguaje de Programación III · Uniremington · Reto 1 (API REST + pruebas) y R
 
 Integrantes: _(escribe aquí los nombres)_
 
-Ritmo busca canciones en la API pública de Deezer, reproduce un fragmento de 30 segundos y permite guardar canciones favoritas en una base de datos SQLite.
+Ritmo busca canciones en la API pública de Deezer, reproduce un fragmento de 30 segundos y guarda un catálogo de canciones en la base de datos SQLite y permite marcar favoritas.
 
 ## Ramas del repositorio
 
@@ -108,18 +108,62 @@ TypeORM → data/ritmo.sqlite   services/notificacionService.js
                               API externa (webhook.site)
 ```
 
-## Interfaz web del CRUD
+## Catálogo en la base de datos (tabla `catalogo`)
+
+TypeORM crea la tabla **`catalogo`** (entidad `Catalogo`), donde se guardan las canciones descargadas de la API de Deezer. La página trabaja sobre esta tabla: la búsqueda y la lista del apartado **Catálogo** salen de ella, no de la API. La tabla `favoritos` es independiente: borrar o reiniciar el catálogo nunca la modifica.
+
+### Qué hace cada operación
+
+| Operación | Qué hace |
+|---|---|
+| Carga inicial (automática) | Al iniciar el servidor, si `catalogo` está vacía, pide a la API **solo 100 canciones** (una petición al ranking global) y las guarda. Si la tabla ya tiene datos, no descarga nada. |
+| Obtener todo | Pide a la API el ranking global y el de cada género (hasta `CARGA_COMPLETA`, 5000 por defecto). Agrega las canciones nuevas y **actualiza** las que ya estaban. |
+| Borrar | Vacía la tabla `catalogo`. |
+| Reiniciar | Descarga las 100 canciones iniciales y reemplaza todo el contenido de `catalogo`. Si la API falla, no borra nada. |
+
+Deezer no permite descargar todo su catálogo (son millones de canciones), así que «todo» significa los rankings global y por género: unos pocos miles de canciones.
+
+### Desde la terminal
+
+```powershell
+npm run catalogo:estado                 # cuántas canciones hay en la tabla catalogo
+npm run catalogo:obtener                # obtener todo: ranking global + ranking de cada género
+node scripts/catalogo.js obtener 1000   # igual, pero hasta 1000 canciones
+npm run catalogo:borrar                 # borra todas las canciones del catálogo
+npm run catalogo:reiniciar              # borra el catálogo y vuelve a cargar las 100 iniciales
+```
+
+Funcionan con el servidor encendido o apagado. Si está encendido, recarga la página para ver el cambio. Ninguno toca los favoritos.
+
+Para reiniciar **toda** la base de datos (favoritos incluidos): detén el servidor y borra el archivo `data/ritmo.sqlite`. Se vuelve a crear al iniciar.
+
+### Desde la página
+
+La pestaña **Catálogo** tiene los botones **Obtener todo**, **Reiniciar** y **Borrar todo**, que hacen lo mismo que los comandos. Mientras descarga muestra una barra de avance, y «Reiniciar» y «Borrar todo» piden confirmación.
+
+### Endpoints del catálogo
+
+| Método | Ruta | Qué hace | Respuestas |
+|---|---|---|---|
+| GET | `/api/catalogo?q=&pagina=&limite=` | Lista paginada y búsqueda (formato del Reto 1) | 200 |
+| GET | `/api/catalogo/estado` | Total guardado y avance de la carga | 200 |
+| POST | `/api/catalogo/cargar` | Inicia una carga. Cuerpo: `{ "modo": "inicial" \| "completo" \| "reiniciar" }` | 202, 400, 409 |
+| DELETE | `/api/catalogo` | Borra todo el catálogo | 200, 409 |
+
+La carga corre en segundo plano (202) y su avance se consulta en `/estado`. Solo puede haber una carga a la vez (409).
+
+## Interfaz web
 
 La página tiene dos secciones:
 
-- **Explorar:** busca canciones o mira el Top global. El corazón de cada canción la agrega a favoritos (POST) y, si ya era favorita, la quita (DELETE).
+- **Catálogo:** busca y lista las canciones de la tabla `catalogo`, con paginación. El corazón de cada canción la agrega a favoritas (POST) o la quita (DELETE).
 - **Mis favoritas:** muestra las canciones guardadas (GET). Cada tarjeta permite reproducir, **editar** el nombre y las notas (PUT) y **eliminar** con confirmación (DELETE). El botón **Seleccionar** activa casillas para marcar varias canciones y eliminarlas de una vez.
 
 El panel «Ver última respuesta JSON», al final de la página, muestra el método, la ruta, el código de estado y el JSON de cada petición. Sirve para mostrar el CRUD funcionando sin abrir Postman.
 
 ## Evidencias para la entrega
 
-1. **Tabla generada por el ORM:** abre `data/ritmo.sqlite` con DB Browser for SQLite y captura la tabla `favoritos`. Opcional: cambia `logging: false` por `logging: true` en `src/database/dataSource.js` para ver en la consola el `CREATE TABLE` que genera TypeORM. Después vuelve a dejarlo en `false`.
+1. **Tablas generadas por el ORM:** abre `data/ritmo.sqlite` con DB Browser for SQLite y captura las tablas `favoritos` y `catalogo`. Opcional: cambia `logging: false` por `logging: true` en `src/database/dataSource.js` para ver en la consola el `CREATE TABLE` que genera TypeORM. Después vuelve a dejarlo en `false`.
 2. **CRUD en Postman:** importa `postman/Reto2_Favoritos.postman_collection.json` y ejecuta las peticiones 1 a 5 en orden. Cada una tiene su captura.
 3. **Envío a API externa:** captura la petición recibida en webhook.site y la línea `[API externa] Enviado correctamente` de la consola.
 
@@ -131,6 +175,11 @@ server.js                           arranca la base de datos y el servidor
 src/app.js                          ensambla las piezas (único lugar con `new`)
 src/database/dataSource.js          conexión SQLite con TypeORM
 src/entities/favorito.entity.js     modelo Favorito (TypeORM crea la tabla)
+src/entities/catalogo.entity.js     modelo Catalogo (tabla "catalogo")
+src/database/catalogoRepositorio.js acceso a la tabla del catálogo
+src/composicion.js                  construye el servicio del catálogo (server y terminal)
+src/config.js                       lee CARGA_INICIAL, CARGA_COMPLETA y CARGA_AL_INICIAR
+scripts/catalogo.js                 comandos de terminal: estado, obtener, borrar, reiniciar
 src/routes/                         rutas del Reto 1 y del Reto 2
 src/controllers/                    traduce peticiones a respuestas HTTP
 src/services/                       reglas de negocio y llamadas externas
@@ -145,7 +194,8 @@ postman/                            colecciones de Postman
 - `FavoritosController` recibe el servicio por el constructor.
 - `FavoritosService` recibe el repositorio de TypeORM y el notificador.
 - `NotificacionService` recibe la URL y el cliente HTTP.
-- Solo `src/app.js` construye las piezas con `new`. Por eso las pruebas usan repositorios simulados y no necesitan base de datos ni internet.
+- `CatalogoService` recibe el repositorio del catálogo, el servicio de Deezer y la configuración.
+- Las piezas se construyen con `new` solo en `src/app.js` y `src/composicion.js`. Por eso las pruebas usan repositorios y servicios simulados y no necesitan base de datos ni internet.
 
 ## Notas
 

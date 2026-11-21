@@ -1,4 +1,4 @@
 $kind: http-request
-url: "{{baseUrl}}/api/favoritos/{{favoritoId}}"
+url: https://schema.getpostman.com/json/collection/v2.1.0/collection.json
 method: DELETE
 order: 5000

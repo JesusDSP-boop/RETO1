@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/api/canciones?q=daft punk"
+method: GET
+queryParams:
+  q: daft punk
+order: 1000
