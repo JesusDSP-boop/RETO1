@@ -49,13 +49,13 @@ test('2. Manejo de errores: si la API falla, se responde un error claro (no expl
     { get: async () => ({ data: { error: { code: 4, message: 'Quota limit exceeded' } } }) }, // error de Deezer
   ];
   for (const http of fallos) {
-    const controlador = new MusicController(new DeezerService(http));
+    const controlador = new MusicController(new DeezerService(http), { error() {} }); // logger silencioso
     const res = crearRes();
     await controlador.buscar({ query: { q: 'queen' } }, res);
 
     assert.equal(res.codigo, 502);
     assert.equal(typeof res.cuerpo.error, 'string');
-    assert.equal(typeof res.cuerpo.detalle, 'string');
+    assert.equal(res.cuerpo.detalle, undefined); // Reto 3: el detalle técnico ya no se expone al cliente
   }
 });
 

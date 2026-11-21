@@ -1,203 +1,179 @@
 # Ritmo: reproductor de música con la API de Deezer
 
-Lenguaje de Programación III · Uniremington · Reto 1 (API REST + pruebas) y Reto 2 (persistencia y CRUD)
-
+Lenguaje de Programación III · Uniremington · Retos 1, 2 y 3 integrados
 Integrantes: _(escribe aquí los nombres)_
 
-Ritmo busca canciones en la API pública de Deezer, reproduce un fragmento de 30 segundos y guarda un catálogo de canciones en la base de datos SQLite y permite marcar favoritas.
+Ritmo consume la API pública de Deezer, guarda un catálogo de canciones en una base de datos SQLite con un ORM (TypeORM), permite marcar favoritas y reproducir un fragmento de 30 segundos de cada canción. El Reto 3 lo deja listo para el mundo real: logs, endpoint de salud, seguridad y pruebas de integración.
 
-## Ramas del repositorio
+## Ramas
 
-- **`main`**: entrega del Reto 1. API REST, 3 pruebas unitarias y página web. Sin base de datos.
-- **`reto2`**: persistencia con TypeORM, CRUD de favoritos y envío a una API externa.
+- `main`: Reto 1 (API REST con Deezer, inyección de dependencias y 3 pruebas unitarias).
+- `reto2`: persistencia con TypeORM, CRUD de favoritas, catálogo y envío a una API externa.
+- `reto3`: proyecto final, con los tres retos integrados.
 
 ## Instalación y ejecución
 
 Requisito: Node.js 20 o superior.
 
-```bash
+```powershell
 npm install
-copy .env.example .env
+copy .env.example .env     # solo si todavía no tienes un archivo .env
+```
+
+Abre `.env` y completa **`API_KEY`** (obligatoria; sin ella el servidor no arranca). Genera una clave con:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"
+```
+
+Luego inicia el servidor:
+
+```powershell
 npm start
 ```
 
-Abre http://localhost:3000. Las pruebas se ejecutan con `npm test`.
+Abre http://localhost:3000. Para agregar, editar o eliminar desde la página, pulsa **Clave de acceso** y pega tu `API_KEY`. Se guarda solo en esa pestaña del navegador.
 
-Para la Parte 3 edita `.env` y completa `URL_API_EXTERNA` (ver más abajo). Si la dejas vacía, la aplicación funciona igual, solo que no envía notificaciones.
+### Variables de entorno (`.env`, no se sube a GitHub)
 
-## Reto 1: API REST con Deezer
+| Variable | Para qué sirve |
+|---|---|
+| `API_KEY` | Clave que exigen POST, PUT y DELETE (mínimo 16 caracteres). Obligatoria. |
+| `ORIGENES_PERMITIDOS` | Lista blanca de orígenes para CORS, separados por comas. |
+| `LOG_LEVEL` | `error`, `warn`, `info`, `http` o `debug`. Con `http` se registra cada petición. |
+| `PORT` | Puerto del servidor (3000 por defecto). |
+| `URL_API_EXTERNA` | URL que recibe el POST al guardar un favorito (por ejemplo webhook.site). |
+| `CARGA_INICIAL`, `CARGA_COMPLETA`, `CARGA_AL_INICIAR` | Tamaño de las cargas del catálogo y si se hace la carga inicial al arrancar. |
 
-- **API elegida:** Deezer (https://developers.deezer.com/api). Consultar el catálogo público no requiere API key.
-- **Por qué:** entrega canciones, artistas, carátulas y un enlace a un preview MP3 de 30 segundos, que es lo que necesita un reproductor.
+## API elegida (Reto 1)
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/canciones?q=texto` | Busca canciones (400 si falta `q`) |
-| GET | `/api/canciones/top` | Ranking global |
+**Deezer** (https://developers.deezer.com/api): entrega canciones, artistas, carátulas y un preview MP3 de 30 segundos, es gratuita y consultar el catálogo no requiere API key. Es la fuente de los datos del proyecto. Limitación: los audios son previews, no canciones completas.
 
-Si Deezer no responde, el servidor devuelve 502 con un JSON de error y la página lo muestra sin romperse.
+## Endpoints
 
-Pruebas (`test/musica.test.js`): formato correcto, manejo de errores y mock de dependencia.
+Todas las respuestas, incluidos los errores, son JSON. «Clave» indica que la petición debe llevar el encabezado `x-api-key`.
 
-## Reto 2: persistencia y CRUD de favoritos
+| Método | Ruta | Clave | Qué hace | Respuestas |
+|---|---|---|---|---|
+| GET | `/health` | no | Estado del servicio: `{ status: "ok", timestamp }` | 200, 503 |
+| GET | `/api/canciones?q=` | no | Busca en Deezer (en vivo) | 200, 400, 502 |
+| GET | `/api/canciones/top` | no | Ranking global de Deezer (en vivo) | 200, 502 |
+| GET | `/api/favoritos` | no | Lista las favoritas | 200 |
+| GET | `/api/favoritos/:id` | no | Busca una favorita | 200, 400, 404 |
+| POST | `/api/favoritos` | sí | Guarda una favorita | 201, 400, 401, 409, 413 |
+| PUT | `/api/favoritos/:id` | sí | Edita el nombre y/o las notas | 200, 400, 401, 404 |
+| DELETE | `/api/favoritos/:id` | sí | Elimina una favorita | 200, 400, 401, 404 |
+| GET | `/api/catalogo?q=&pagina=&limite=` | no | Lista paginada del catálogo guardado | 200, 400 |
+| GET | `/api/catalogo/estado` | no | Total guardado y avance de la carga | 200 |
+| POST | `/api/catalogo/cargar` | sí | Inicia una carga: `{ "modo": "inicial" \| "completo" \| "reiniciar" }` | 202, 400, 401, 409 |
+| DELETE | `/api/catalogo` | sí | Borra el catálogo | 200, 401, 409 |
 
-### Modelo y ORM
+Tras 10 claves incorrectas desde la misma IP en un minuto, la API responde 429.
 
-- **Entidad `Favorito`** (`src/entities/favorito.entity.js`): sus campos vienen del JSON del Reto 1, más un `id` autogenerado y las fechas `creadoEn` y `actualizadoEn`.
-- **TypeORM** crea la tabla `favoritos` al arrancar (`synchronize: true`). No hay ninguna sentencia SQL escrita a mano.
-- **Base de datos:** un archivo SQLite en `data/ritmo.sqlite`, que se crea solo. La carpeta `data/` no se sube a GitHub.
+## Arquitectura e inyección de dependencias
 
-### Endpoints
+Cada petición recorre: **middleware** (log, cabeceras, CORS, JSON) → **ruta** → **autenticación** (si modifica datos) → **controlador** (HTTP) → **servicio** (reglas de negocio) → **repositorio / API externa**.
 
-| Método | Ruta | Qué hace | Respuestas |
-|---|---|---|---|
-| POST | `/api/favoritos` | Guarda una canción (JSON del Reto 1) | 201, 400, 409 |
-| GET | `/api/favoritos` | Lista todos los favoritos | 200 |
-| GET | `/api/favoritos/:id` | Busca uno por su id | 200, 400, 404 |
-| PUT | `/api/favoritos/:id` | Edita el nombre y/o las notas | 200, 400, 404 |
-| DELETE | `/api/favoritos/:id` | Elimina el registro y lo confirma | 200, 400, 404 |
+Ninguna pieza crea a la siguiente: la recibe por el constructor (inyección de dependencias). Los `new` están solo en `src/app.js` y `src/composicion.js`. Por eso las pruebas unitarias usan repositorios, servicios, cliente HTTP y loggers simulados, sin base de datos ni internet. La explicación evaluada está en `src/controllers/musicController.js`.
 
-Cuerpo del POST (`id`, `titulo` y `artista` son obligatorios):
+## Reto 2: ORM, CRUD y API externa
 
-```json
-{
-  "id": 3135556,
-  "titulo": "Harder, Better, Faster, Stronger",
-  "artista": "Daft Punk",
-  "album": "Discovery",
-  "portada": "https://...",
-  "duracion": 224,
-  "preview": "https://...",
-  "enlace": "https://www.deezer.com/track/3135556"
-}
-```
+- **TypeORM + SQLite.** Los modelos `Favorito` y `Catalogo` (`src/entities`) generan las tablas `favoritos` y `catalogo` con `synchronize`. No hay SQL escrito a mano. La base es el archivo `data/ritmo.sqlite`.
+- **CRUD de favoritas:** POST, GET (lista y por id), PUT y DELETE.
+- **Envío a una API externa:** al guardar un favorito, el servidor envía un POST con su resumen a `URL_API_EXTERNA`. Si esa API falla, el favorito queda guardado igual.
 
-Cuerpo del PUT (basta con un campo): `{ "titulo": "Mi versión", "notas": "Para entrenar" }`. El nombre no puede estar vacío (máximo 120 caracteres). Envía `"notas": null` para borrar las notas (máximo 500).
+### Catálogo: carga automática y comandos
 
-Los errores tienen siempre el mismo formato: `{ "error": "mensaje" }`.
-
-### Parte 3: envío a una API externa
-
-Cuando se guarda un favorito, el servidor envía por POST este JSON a `URL_API_EXTERNA`:
-
-```json
-{ "evento": "favorito_creado", "id": 1, "deezerId": 3135556, "titulo": "...", "artista": "Daft Punk" }
-```
-
-El envío ocurre después de guardar. Si la API externa falla, el favorito queda guardado igual y el error se registra en la consola.
-
-Para probarlo, abre https://webhook.site, copia tu URL única y pégala en `URL_API_EXTERNA` dentro de `.env`. Reinicia el servidor y crea un favorito: la petición aparecerá en esa página.
-
-### Flujo completo
-
-```
-Postman / página web
-        │  POST /api/favoritos  (JSON)
-        ▼
-routes/favoritosRoutes.js
-        ▼
-controllers/favoritosController.js     ← traduce el resultado a códigos HTTP
-        ▼
-services/favoritosService.js           ← valida y evita duplicados
-        │                    │
-        │ 1. guarda          │ 2. notifica (Parte 3)
-        ▼                    ▼
-TypeORM → data/ritmo.sqlite   services/notificacionService.js
-                                       │  POST JSON
-                                       ▼
-                              API externa (webhook.site)
-```
-
-## Catálogo en la base de datos (tabla `catalogo`)
-
-TypeORM crea la tabla **`catalogo`** (entidad `Catalogo`), donde se guardan las canciones descargadas de la API de Deezer. La página trabaja sobre esta tabla: la búsqueda y la lista del apartado **Catálogo** salen de ella, no de la API. La tabla `favoritos` es independiente: borrar o reiniciar el catálogo nunca la modifica.
-
-### Qué hace cada operación
+La tabla `catalogo` guarda las canciones descargadas de Deezer, y la página busca sobre ella.
 
 | Operación | Qué hace |
 |---|---|
-| Carga inicial (automática) | Al iniciar el servidor, si `catalogo` está vacía, pide a la API **solo 100 canciones** (una petición al ranking global) y las guarda. Si la tabla ya tiene datos, no descarga nada. |
-| Obtener todo | Pide a la API el ranking global y el de cada género (hasta `CARGA_COMPLETA`, 5000 por defecto). Agrega las canciones nuevas y **actualiza** las que ya estaban. |
+| Carga inicial (al iniciar) | Si `catalogo` está vacía, pide a la API solo 100 canciones. Si ya tiene datos, no descarga nada. |
+| Obtener todo | Pide el ranking global y el de cada género (hasta `CARGA_COMPLETA`). Agrega las nuevas y actualiza las existentes. |
 | Borrar | Vacía la tabla `catalogo`. |
-| Reiniciar | Descarga las 100 canciones iniciales y reemplaza todo el contenido de `catalogo`. Si la API falla, no borra nada. |
-
-Deezer no permite descargar todo su catálogo (son millones de canciones), así que «todo» significa los rankings global y por género: unos pocos miles de canciones.
-
-### Desde la terminal
+| Reiniciar | Descarga las 100 iniciales y reemplaza todo el contenido. Si la API falla, no borra nada. |
 
 ```powershell
-npm run catalogo:estado                 # cuántas canciones hay en la tabla catalogo
-npm run catalogo:obtener                # obtener todo: ranking global + ranking de cada género
-node scripts/catalogo.js obtener 1000   # igual, pero hasta 1000 canciones
-npm run catalogo:borrar                 # borra todas las canciones del catálogo
-npm run catalogo:reiniciar              # borra el catálogo y vuelve a cargar las 100 iniciales
+npm run catalogo:estado       # cuántas canciones hay
+npm run catalogo:obtener      # obtener todo
+npm run catalogo:borrar       # borrar todo
+npm run catalogo:reiniciar    # borrar y volver a cargar las 100 iniciales
 ```
 
-Funcionan con el servidor encendido o apagado. Si está encendido, recarga la página para ver el cambio. Ninguno toca los favoritos.
+Los mismos botones están en la pestaña **Catálogo** de la página. Los favoritos nunca se tocan.
 
-Para reiniciar **toda** la base de datos (favoritos incluidos): detén el servidor y borra el archivo `data/ritmo.sqlite`. Se vuelve a crear al iniciar.
+## Reto 3, Parte 1: Observabilidad
 
-### Desde la página
+- **Logging con Winston** (`src/logger.js`): consola y archivos `logs/app.log` (todo) y `logs/error.log` (solo errores).
+- **Una línea por petición** con método, ruta, código y tiempo:
 
-La pestaña **Catálogo** tiene los botones **Obtener todo**, **Reiniciar** y **Borrar todo**, que hacen lo mismo que los comandos. Mientras descarga muestra una barra de avance, y «Reiniciar» y «Borrar todo» piden confirmación.
+  ```
+  2026-11-21 10:15:30 [HTTP] GET /api/catalogo?pagina=1 200 12ms
+  2026-11-21 10:15:31 [WARN] GET /no-existe 404 2ms
+  ```
 
-### Endpoints del catálogo
+- **Errores con nivel ERROR y stacktrace completo** (por ejemplo, cuando Deezer no responde).
+- **`GET /health`** responde `{ "status": "ok", "timestamp": "..." }` y comprueba que la base de datos responde (503 si no).
 
-| Método | Ruta | Qué hace | Respuestas |
+## Reto 3, Parte 2: Hardening
+
+El informe con el antes y el después de cada vulnerabilidad está en [`docs/INFORME_HARDENING.md`](docs/INFORME_HARDENING.md).
+
+| # | Vulnerabilidad | Riesgo | Medida |
 |---|---|---|---|
-| GET | `/api/catalogo?q=&pagina=&limite=` | Lista paginada y búsqueda (formato del Reto 1) | 200 |
-| GET | `/api/catalogo/estado` | Total guardado y avance de la carga | 200 |
-| POST | `/api/catalogo/cargar` | Inicia una carga. Cuerpo: `{ "modo": "inicial" \| "completo" \| "reiniciar" }` | 202, 400, 409 |
-| DELETE | `/api/catalogo` | Borra todo el catálogo | 200, 409 |
+| 1 | Endpoints que modifican datos sin autenticación | Medio | Middleware `requerirApiKey` (clave en `.env`, comparación segura y bloqueo tras intentos fallidos) |
+| 2 | Sin validación de entrada suficiente | Alto | `src/validacion.js`: tipos, longitudes y URLs http/https; el cuerpo se limita a 10 KB |
+| 3 | Errores técnicos expuestos | Bajo | Mensajes genéricos al cliente, detalle solo en los logs, sin `X-Powered-By` |
 
-La carga corre en segundo plano (202) y su avance se consulta en `/estado`. Solo puede haber una carga a la vez (409).
+Además: CORS con lista blanca (nunca `*`), cabeceras de seguridad y credenciales solo en `.env`.
 
-## Interfaz web
+## Reto 3, Parte 3 y pruebas
 
-La página tiene dos secciones:
+```powershell
+npm run test:reto1          # 3 pruebas unitarias del Reto 1
+npm run test:reto2          # pruebas unitarias de favoritas y catálogo
+npm run test:reto3          # pruebas unitarias de observabilidad y seguridad
+npm run test:integracion    # 3 pruebas de integración (servidor y base de datos reales)
+npm run test:unitarias      # todas las unitarias
+npm test                    # todo
+```
 
-- **Catálogo:** busca y lista las canciones de la tabla `catalogo`, con paginación. El corazón de cada canción la agrega a favoritas (POST) o la quita (DELETE).
-- **Mis favoritas:** muestra las canciones guardadas (GET). Cada tarjeta permite reproducir, **editar** el nombre y las notas (PUT) y **eliminar** con confirmación (DELETE). El botón **Seleccionar** activa casillas para marcar varias canciones y eliminarlas de una vez.
+Las **pruebas de integración** (`test/integracion.test.js`) levantan el servidor Express real, hacen peticiones HTTP reales y usan una base SQLite real en memoria (no tocan `data/ritmo.sqlite`):
 
-El panel «Ver última respuesta JSON», al final de la página, muestra el método, la ruta, el código de estado y el JSON de cada petición. Sirve para mostrar el CRUD funcionando sin abrir Postman.
+1. **Create completo:** POST responde 201 y el dato ya existe en la base de datos.
+2. **Read con dato real:** se guarda un registro en la base de datos y GET `/:id` devuelve exactamente ese dato.
+3. **Delete:** se crea un registro, se borra y un GET posterior responde 404.
+
+La guía [`docs/GUIA_DEL_PROYECTO.md`](docs/GUIA_DEL_PROYECTO.md) explica cada prueba y cómo ejecutar cada prueba de error.
 
 ## Evidencias para la entrega
 
-1. **Tablas generadas por el ORM:** abre `data/ritmo.sqlite` con DB Browser for SQLite y captura las tablas `favoritos` y `catalogo`. Opcional: cambia `logging: false` por `logging: true` en `src/database/dataSource.js` para ver en la consola el `CREATE TABLE` que genera TypeORM. Después vuelve a dejarlo en `false`.
-2. **CRUD en Postman:** importa `postman/Reto2_Favoritos.postman_collection.json` y ejecuta las peticiones 1 a 5 en orden. Cada una tiene su captura.
-3. **Envío a API externa:** captura la petición recibida en webhook.site y la línea `[API externa] Enviado correctamente` de la consola.
+1. **Logs funcionando:** consola y `logs/app.log` mientras se ejecutan las peticiones de `postman/Reto3_Seguridad.postman_collection.json`.
+2. **Informe de hardening:** `docs/INFORME_HARDENING.md` (antes y después de cada medida).
+3. **Pruebas en verde:** captura de `npm run test:integracion` y de `npm test`.
+4. **Postman:** colecciones de `postman/` (Reto 1, Reto 2 y Reto 3).
+5. **Tablas del ORM:** `data/ritmo.sqlite` abierto en DB Browser (tablas `favoritos` y `catalogo`).
 
 ## Estructura
 
 ```
-server.js                           arranca la base de datos y el servidor
-.env.example                        plantilla de variables (copiar a .env)
-src/app.js                          ensambla las piezas (único lugar con `new`)
-src/database/dataSource.js          conexión SQLite con TypeORM
-src/entities/favorito.entity.js     modelo Favorito (TypeORM crea la tabla)
-src/entities/catalogo.entity.js     modelo Catalogo (tabla "catalogo")
-src/database/catalogoRepositorio.js acceso a la tabla del catálogo
-src/composicion.js                  construye el servicio del catálogo (server y terminal)
-src/config.js                       lee CARGA_INICIAL, CARGA_COMPLETA y CARGA_AL_INICIAR
-scripts/catalogo.js                 comandos de terminal: estado, obtener, borrar, reiniciar
-src/routes/                         rutas del Reto 1 y del Reto 2
-src/controllers/                    traduce peticiones a respuestas HTTP
-src/services/                       reglas de negocio y llamadas externas
-src/errores.js                      error con código HTTP
-public/index.html                   página web: explorar, favoritos y CRUD
-test/                               pruebas unitarias (Reto 1 y Reto 2)
-postman/                            colecciones de Postman
+server.js                           arranca la base de datos, el logger y el servidor
+src/app.js                          arma la cadena de middleware y las rutas
+src/middleware/                     observabilidad.js, seguridad.js, errores.js
+src/validacion.js                   validación de entrada
+src/logger.js                       logging con Winston
+src/config.js, src/composicion.js   configuración (.env) y construcción del catálogo
+src/routes/, src/controllers/       rutas y controladores (música, favoritas, catálogo)
+src/services/                       Deezer, favoritas, catálogo y API externa
+src/database/, src/entities/        TypeORM: conexión, repositorio del catálogo y modelos
+scripts/catalogo.js                 comandos de terminal del catálogo
+public/index.html                   la página web
+test/                               pruebas unitarias y de integración
+postman/                            colecciones de los tres retos
+docs/                               informe de hardening y guía del proyecto
 ```
-
-## Inyección de dependencias
-
-- `FavoritosController` recibe el servicio por el constructor.
-- `FavoritosService` recibe el repositorio de TypeORM y el notificador.
-- `NotificacionService` recibe la URL y el cliente HTTP.
-- `CatalogoService` recibe el repositorio del catálogo, el servicio de Deezer y la configuración.
-- Las piezas se construyen con `new` solo en `src/app.js` y `src/composicion.js`. Por eso las pruebas usan repositorios y servicios simulados y no necesitan base de datos ni internet.
 
 ## Notas
 
-- Render despliega solo la rama `main`, así que la rama `reto2` no cambia la página publicada.
-- En Render el disco es temporal: los favoritos se borran al reiniciar el servicio. Por eso esta versión está pensada para correr en local.
+- Es una aplicación pensada para ejecutarse en local con SQLite. En un hosting como Render el disco es temporal: los datos se pierden al reiniciar el servicio.
+- Para publicarla se recomienda usar HTTPS y una base de datos administrada.

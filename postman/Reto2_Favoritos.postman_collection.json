@@ -4,8 +4,18 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" },
-    { "key": "favoritoId", "value": "1" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "favoritoId",
+      "value": "1"
+    },
+    {
+      "key": "apiKey",
+      "value": "PEGA_AQUI_TU_API_KEY"
+    }
   ],
   "item": [
     {
@@ -25,15 +35,29 @@
       ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/favoritos",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "favoritos"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
         }
       }
     },
@@ -43,8 +67,13 @@
         "method": "GET",
         "url": {
           "raw": "{{baseUrl}}/api/favoritos",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "favoritos"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
         }
       }
     },
@@ -54,8 +83,14 @@
         "method": "GET",
         "url": {
           "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "favoritos", "{{favoritoId}}"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
         }
       }
     },
@@ -63,15 +98,30 @@
       "name": "4. PUT editar nombre y notas",
       "request": {
         "method": "PUT",
-        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"titulo\": \"Harder, Better (mi versión)\",\n  \"notas\": \"Para entrenar\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "favoritos", "{{favoritoId}}"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
         }
       }
     },
@@ -81,9 +131,21 @@
         "method": "DELETE",
         "url": {
           "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "favoritos", "{{favoritoId}}"]
-        }
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ]
       }
     }
   ]

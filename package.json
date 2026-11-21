@@ -1,7 +1,7 @@
 {
   "name": "reto1-reproductor-deezer",
-  "version": "2.2.0",
-  "description": "Ritmo: API REST con Deezer (Reto 1) y persistencia CRUD + catálogo con TypeORM y SQLite (Reto 2)",
+  "version": "3.0.0",
+  "description": "Ritmo: API REST con Deezer (Reto 1), persistencia CRUD (Reto 2) y observabilidad, seguridad y pruebas de integración (Reto 3)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,7 +9,12 @@
     "catalogo:estado": "node scripts/catalogo.js estado",
     "catalogo:obtener": "node scripts/catalogo.js obtener",
     "catalogo:borrar": "node scripts/catalogo.js borrar",
-    "catalogo:reiniciar": "node scripts/catalogo.js reiniciar"
+    "catalogo:reiniciar": "node scripts/catalogo.js reiniciar",
+    "test:reto1": "node --test test/musica.test.js",
+    "test:reto2": "node --test test/favoritos.test.js test/catalogo.test.js",
+    "test:reto3": "node --test test/observabilidad.test.js test/seguridad.test.js",
+    "test:unitarias": "node --test test/musica.test.js test/favoritos.test.js test/catalogo.test.js test/observabilidad.test.js test/seguridad.test.js",
+    "test:integracion": "node --test test/integracion.test.js"
   },
   "engines": {
     "node": ">=20"
@@ -20,6 +25,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "reflect-metadata": "^0.2.2",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "winston": "^3.17.0"
   }
 }

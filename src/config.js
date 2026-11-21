@@ -12,4 +12,16 @@ function leerConfig(env = process.env) {
   };
 }
 
-module.exports = { leerConfig };
+const NIVELES = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'];
+
+// Seguridad y logs: API_KEY (autenticación), ORIGENES_PERMITIDOS (CORS, separados por comas) y LOG_LEVEL.
+function leerConfigSeguridad(env = process.env) {
+  const nivel = String(env.LOG_LEVEL ?? 'http').trim().toLowerCase();
+  return {
+    apiKey: String(env.API_KEY ?? '').trim(),
+    origenesPermitidos: String(env.ORIGENES_PERMITIDOS ?? '').split(',').map((o) => o.trim()).filter(Boolean),
+    nivelLogs: NIVELES.includes(nivel) ? nivel : 'http',
+  };
+}
+
+module.exports = { leerConfig, leerConfigSeguridad };

@@ -75,6 +75,8 @@ ol,ul{margin:0;padding:0;list-style:none}
 details{margin-top:32px;padding-top:12px;border-top:2px solid var(--tinta)}
 summary{cursor:pointer;font-weight:700}
 pre{max-height:320px;overflow:auto;margin:12px 0 0;padding:12px;border-radius:8px;background:var(--tinta);color:#DDE1FF;font-size:.78rem;white-space:pre-wrap;word-break:break-word}
+.btn-acceso{display:flex;align-items:center;gap:8px;margin-left:auto;padding:10px 18px;border:2px solid var(--tinta);border-radius:999px;background:none;font-weight:700}
+.btn-acceso b{padding:0 8px;border-radius:99px;background:var(--sol);color:var(--tinta);font-size:.8rem}
 progress{width:100%;height:10px;margin:0 0 16px;accent-color:var(--azul)}
 .paginas{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px}
 #cat-info{margin:0 0 10px}
@@ -108,6 +110,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 <nav class="tabs" aria-label="Secciones">
   <button class="tab" type="button" data-vista="catalogo" aria-pressed="true">Catálogo <b id="cont-cat">0</b></button>
   <button class="tab" type="button" data-vista="favoritos" aria-pressed="false">Mis favoritas <b id="cont-favs">0</b></button>
+  <button class="btn-acceso" type="button" id="btn-acceso">Clave de acceso <b id="est-clave">sin clave</b></button>
 </nav>
 
 <main>
@@ -162,7 +165,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 <dialog id="dlg-editar">
   <form method="dialog">
     <h2>Editar canción</h2>
-    <label>Nombre de la canción<input id="e-titulo" maxlength="120" required></label>
+    <label>Nombre de la canción<input id="e-titulo" maxlength="200" required></label>
     <label>Notas<textarea id="e-notas" maxlength="500" rows="3"></textarea></label>
     <div class="acciones">
       <button class="btn" type="button" data-cerrar>Cancelar</button>
@@ -178,6 +181,18 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
     <div class="acciones">
       <button class="btn" type="button" data-cerrar>Cancelar</button>
       <button class="btn pel" value="ok">Eliminar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-acceso">
+  <form method="dialog">
+    <h2>Clave de acceso</h2>
+    <p>Agregar, editar, eliminar y cargar el catálogo requieren la clave de la API (variable API_KEY del servidor). Solo se guarda en esta pestaña del navegador.</p>
+    <label>Clave<input id="clave-api" type="password" autocomplete="off"></label>
+    <div class="acciones">
+      <button class="btn" type="button" data-cerrar>Cancelar</button>
+      <button class="btn pri" value="ok">Guardar</button>
     </div>
   </form>
 </dialog>
@@ -244,13 +259,33 @@ function aviso(texto, error) {
   setTimeout(() => t.remove(), 3800);
 }
 
+// ---------- clave de acceso (autenticación) ----------
+const claveApi = () => sessionStorage.getItem('claveApi') || '';
+function mostrarEstadoClave() { $('#est-clave').textContent = claveApi() ? 'lista' : 'sin clave'; }
+function pedirClave() {
+  $('#clave-api').value = claveApi();
+  $('#dlg-acceso').returnValue = '';
+  $('#dlg-acceso').showModal();
+}
+$('#btn-acceso').onclick = pedirClave;
+$('#dlg-acceso').addEventListener('close', (e) => {
+  if (e.target.returnValue !== 'ok') return;
+  sessionStorage.setItem('claveApi', $('#clave-api').value.trim());
+  mostrarEstadoClave();
+  aviso('Clave guardada en esta pestaña');
+});
+
 // ---------- comunicación con NUESTRO Back End ----------
-async function api(url, opciones, mostrar = true) {
+async function api(url, opciones = {}, mostrar = true) {
+  const metodo = opciones.method || 'GET';
+  // Las operaciones que modifican datos (POST, PUT, DELETE) envían la clave de la API.
+  if (metodo !== 'GET') opciones = { ...opciones, headers: { ...opciones.headers, 'x-api-key': claveApi() } };
   const respuesta = await fetch(url, opciones);
   const datos = await respuesta.json().catch(() => ({}));
   if (mostrar) {
     $('#json').textContent = `${opciones?.method || 'GET'} ${url}  →  ${respuesta.status}\n\n${JSON.stringify(datos, null, 2)}`;
   }
+  if (respuesta.status === 401) pedirClave(); // sin clave o clave incorrecta
   if (!respuesta.ok) throw new Error(datos.error || `Error ${respuesta.status}`);
   return datos;
 }
@@ -410,7 +445,7 @@ function pintarFavs() {
       !modoSel && h('div', { class: 'pie' },
         h('button', { class: 'icono', type: 'button', title: 'Editar', 'aria-label': `Editar ${f.titulo}`, onclick: () => abrirEditar(f) }, icono('lapiz')),
         h('button', { class: 'icono', type: 'button', title: 'Eliminar', 'aria-label': `Eliminar ${f.titulo}`, onclick: () => pedirBorrado([f]) }, icono('basura')),
-        f.enlace && h('a', { class: 'icono', href: f.enlace, target: '_blank', rel: 'noopener', title: 'Abrir en Deezer', 'aria-label': `Abrir ${f.titulo} en Deezer` }, icono('externo'))));
+        /^https?:\/\//i.test(f.enlace || '') && h('a', { class: 'icono', href: f.enlace, target: '_blank', rel: 'noopener', title: 'Abrir en Deezer', 'aria-label': `Abrir ${f.titulo} en Deezer` }, icono('externo'))));
   }));
   pintarBarra();
 }
@@ -514,6 +549,7 @@ $('#btn-todas').onclick = () => {
 };
 $('#btn-borrar-sel').onclick = () => pedirBorrado(favs.filter((f) => seleccion.has(f.id)));
 
+mostrarEstadoClave();
 cargarCatalogo();
 cargarFavs();
 estadoCatalogo(); // si el servidor está descargando al arrancar, muestra el avance

@@ -6,8 +6,9 @@ class FavoritosController {
    * El controlador recibe el servicio de favoritos ya construido; no lo crea con `new`.
    * Así las pruebas pueden pasarle un servicio con repositorio simulado.
    */
-  constructor(servicioFavoritos) {
+  constructor(servicioFavoritos, logger = console) {
     this.servicio = servicioFavoritos;
+    this.logger = logger;
   }
 
   listar(req, res) {
@@ -39,7 +40,7 @@ class FavoritosController {
       if (error instanceof ErrorApi) {
         return res.status(error.status).json({ error: error.message });
       }
-      console.error(error);
+      this.logger.error(`Error inesperado: ${error.stack}`);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   }

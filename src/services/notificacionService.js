@@ -3,22 +3,23 @@
 // para que el favorito que ya quedó guardado no se pierda.
 class NotificacionService {
   // INYECCIÓN DE DEPENDENCIAS: la URL y el cliente HTTP llegan desde afuera.
-  constructor({ urlDestino, http = require('axios') } = {}) {
+  constructor({ urlDestino, http = require('axios'), logger = console } = {}) {
     this.urlDestino = urlDestino;
     this.http = http;
+    this.logger = logger;
   }
 
   async notificar(datos) {
     if (!this.urlDestino) {
-      console.warn('[API externa] URL_API_EXTERNA no configurada: no se envió nada.');
+      this.logger.warn('[API externa] URL_API_EXTERNA no configurada: no se envió nada.');
       return false;
     }
     try {
       const respuesta = await this.http.post(this.urlDestino, datos, { timeout: 5000 });
-      console.log(`[API externa] Enviado correctamente (HTTP ${respuesta.status}).`);
+      this.logger.info(`[API externa] Enviado correctamente (HTTP ${respuesta.status}).`);
       return true;
     } catch (error) {
-      console.error(`[API externa] No se pudo enviar: ${error.message}`);
+      this.logger.error(`[API externa] No se pudo enviar: ${error.message}`);
       return false;
     }
   }

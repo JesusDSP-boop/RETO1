@@ -1,0 +1,621 @@
+{
+  "info": {
+    "name": "Reto 3 - Seguridad y errores (pruebas en vivo)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecuta las peticiones EN ORDEN, una por una. Antes pega tu API_KEY en la variable apiKey de la colección."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "apiKey",
+      "value": "PEGA_AQUI_TU_API_KEY"
+    },
+    {
+      "key": "favoritoId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 GET /health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Resultado esperado: 200 con { status: \"ok\", timestamp }"
+      }
+    },
+    {
+      "name": "02 GET ruta inexistente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/no-existe",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "no-existe"
+          ]
+        },
+        "description": "Resultado esperado: 404 con { error: \"Ruta no encontrada\" } (JSON, sin datos técnicos)"
+      }
+    },
+    {
+      "name": "03 POST sin clave",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 401 Autenticación requerida",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        }
+      }
+    },
+    {
+      "name": "04 POST con clave incorrecta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "clave-incorrecta"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 401 Autenticación requerida",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        }
+      }
+    },
+    {
+      "name": "05 POST con clave correcta (crear)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 201 con el favorito creado y su id",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set('favoritoId', pm.response.json().id); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 POST repetido",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 409 Esa canción ya está en tus favoritos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        }
+      }
+    },
+    {
+      "name": "07 POST con enlace malicioso (javascript:)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 400 Campos opcionales inválidos: enlace",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 9001,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"javascript:alert(document.domain)\"\n}"
+        }
+      }
+    },
+    {
+      "name": "08 POST con datos inválidos",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 400 Campos obligatorios faltantes o inválidos",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"abc\",\n  \"titulo\": \"\",\n  \"artista\": \"\"\n}"
+        }
+      }
+    },
+    {
+      "name": "09 POST con título demasiado largo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 400 titulo (máximo 200 caracteres)",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 9002,\n  \"titulo\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
+        }
+      }
+    },
+    {
+      "name": "10 POST con JSON mal escrito",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 400 El cuerpo de la petición no es JSON válido",
+        "body": {
+          "mode": "raw",
+          "raw": "{ \"id\": 1, \"titulo\": "
+        }
+      }
+    },
+    {
+      "name": "11 GET favorito con id inválido",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/abc",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "abc"
+          ]
+        },
+        "description": "Resultado esperado: 400 El id debe ser un número entero positivo"
+      }
+    },
+    {
+      "name": "12 GET favorito inexistente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/999999",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "999999"
+          ]
+        },
+        "description": "Resultado esperado: 404 Favorito no encontrado"
+      }
+    },
+    {
+      "name": "13 PUT sin clave",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "description": "Resultado esperado: 401 Autenticación requerida",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Nuevo nombre\"\n}"
+        }
+      }
+    },
+    {
+      "name": "14 PUT con clave (editar nombre)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "description": "Resultado esperado: 200 con el favorito actualizado",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Mi versión\",\n  \"notas\": \"Para entrenar\"\n}"
+        }
+      }
+    },
+    {
+      "name": "15 DELETE sin clave",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "description": "Resultado esperado: 401 Autenticación requerida"
+      }
+    },
+    {
+      "name": "16 DELETE con clave",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "x-api-key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "description": "Resultado esperado: 200 Favorito eliminado"
+      }
+    },
+    {
+      "name": "17 GET favorito eliminado",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos/{{favoritoId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos",
+            "{{favoritoId}}"
+          ]
+        },
+        "description": "Resultado esperado: 404 Favorito no encontrado"
+      }
+    },
+    {
+      "name": "18 GET /api/canciones sin q",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/canciones",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "canciones"
+          ]
+        },
+        "description": "Resultado esperado: 400 Falta el parámetro \"q\""
+      }
+    },
+    {
+      "name": "19 GET catálogo (público)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalogo?pagina=1&limite=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "catalogo"
+          ],
+          "query": [
+            {
+              "key": "pagina",
+              "value": "1"
+            },
+            {
+              "key": "limite",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Resultado esperado: 200 con { total, pagina, paginas, canciones }"
+      }
+    },
+    {
+      "name": "20 DELETE catálogo sin clave",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalogo",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "catalogo"
+          ]
+        },
+        "description": "Resultado esperado: 401: nadie puede vaciar el catálogo sin la clave"
+      }
+    },
+    {
+      "name": "21 CORS origen permitido",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "http://localhost:3000"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalogo?limite=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "catalogo"
+          ],
+          "query": [
+            {
+              "key": "limite",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Resultado esperado: 200 y cabecera Access-Control-Allow-Origin: http://localhost:3000"
+      }
+    },
+    {
+      "name": "22 CORS origen NO permitido",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "https://sitio-malicioso.com"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalogo?limite=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "catalogo"
+          ],
+          "query": [
+            {
+              "key": "limite",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Resultado esperado: 200 pero SIN la cabecera Access-Control-Allow-Origin"
+      }
+    },
+    {
+      "name": "23 CORS preflight de origen ajeno",
+      "request": {
+        "method": "OPTIONS",
+        "header": [
+          {
+            "key": "Origin",
+            "value": "https://sitio-malicioso.com"
+          },
+          {
+            "key": "Access-Control-Request-Method",
+            "value": "DELETE"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/favoritos",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "favoritos"
+          ]
+        },
+        "description": "Resultado esperado: 403 Origen no permitido"
+      }
+    }
+  ]
+}

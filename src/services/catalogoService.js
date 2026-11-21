@@ -1,4 +1,5 @@
 const ErrorApi = require('../errores');
+const { validarConsulta } = require('../validacion');
 
 const pausa = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
@@ -35,6 +36,7 @@ class CatalogoService {
     this.cargaInicial = Math.min(100, config.cargaInicial ?? 100); // Deezer entrega hasta 100 por petición
     this.cargaCompleta = config.cargaCompleta ?? 5000;
     this.pausaMs = config.pausaMs ?? 200; // Deezer permite unas 50 peticiones cada 5 segundos
+    this.log = config.logger ?? console; // el logger también se inyecta (Winston en producción)
     this.carga = { activa: false, modo: null, objetivo: 0, guardadas: 0, error: null };
     this.tarea = null;
   }
@@ -46,7 +48,9 @@ class CatalogoService {
   async listar({ q = '', pagina = 1, limite = 24 } = {}) {
     const p = Math.max(1, parseInt(pagina, 10) || 1);
     const l = Math.min(100, Math.max(1, parseInt(limite, 10) || 24));
-    const { filas, total } = await this.repositorio.buscar({ q: String(q).trim(), pagina: p, limite: l });
+    const consulta = String(q).trim();
+    validarConsulta(consulta);
+    const { filas, total } = await this.repositorio.buscar({ q: consulta, pagina: p, limite: l });
     return { total, pagina: p, limite: l, paginas: Math.max(1, Math.ceil(total / l)), canciones: filas.map(aJson) };
   }
 
@@ -79,7 +83,7 @@ class CatalogoService {
   // Página web: responde enseguida y descarga en segundo plano (la página consulta el avance).
   iniciarCarga(modo = 'inicial') {
     this._preparar(modo);
-    this.tarea = this._correr(modo).catch((error) => console.error(`[catálogo] La carga falló: ${error.message}`));
+    this.tarea = this._correr(modo).catch((error) => this.log.error(`[catálogo] La carga falló: ${error.stack}`));
     return { ...this.carga };
   }
 
@@ -137,7 +141,7 @@ class CatalogoService {
         try {
           lista = await this.deezer.obtenerTop(100, genero.id);
         } catch (error) {
-          console.warn(`[catálogo] Género «${genero.nombre}» omitido: ${error.message}`);
+          this.log.warn(`[catálogo] Género «${genero.nombre}» omitido: ${error.message}`);
           continue;
         }
         await procesar(lista);

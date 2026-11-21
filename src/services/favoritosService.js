@@ -1,4 +1,5 @@
 const ErrorApi = require('../errores');
+const { validarCancion, MAX_TEXTO } = require('../validacion');
 
 const textoOpcional = (valor) => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
 
@@ -9,17 +10,6 @@ function aIdValido(valor) {
     throw new ErrorApi(400, 'El id debe ser un número entero positivo');
   }
   return id;
-}
-
-// Revisa los campos obligatorios del JSON del Reto 1 antes de tocar la base de datos.
-function validarCancion(datos) {
-  const faltan = [];
-  if (!Number.isInteger(datos?.id) || datos.id <= 0) faltan.push('id (número de Deezer)');
-  if (typeof datos?.titulo !== 'string' || !datos.titulo.trim()) faltan.push('titulo');
-  if (typeof datos?.artista !== 'string' || !datos.artista.trim()) faltan.push('artista');
-  if (faltan.length > 0) {
-    throw new ErrorApi(400, `Campos obligatorios faltantes o inválidos: ${faltan.join(', ')}`);
-  }
 }
 
 class FavoritosService {
@@ -83,7 +73,7 @@ class FavoritosService {
     if ('titulo' in datos) {
       const titulo = typeof datos.titulo === 'string' ? datos.titulo.trim() : '';
       if (!titulo) throw new ErrorApi(400, 'El nombre de la canción no puede estar vacío');
-      if (titulo.length > 120) throw new ErrorApi(400, 'El nombre no puede tener más de 120 caracteres');
+      if (titulo.length > MAX_TEXTO) throw new ErrorApi(400, `El nombre no puede tener más de ${MAX_TEXTO} caracteres`);
       cambios.titulo = titulo;
     }
     if ('notas' in datos) {

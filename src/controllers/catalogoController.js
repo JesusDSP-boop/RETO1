@@ -2,8 +2,9 @@ const ErrorApi = require('../errores');
 
 class CatalogoController {
   // Recibe el servicio ya construido (inyección de dependencias), igual que los demás controladores.
-  constructor(servicioCatalogo) {
+  constructor(servicioCatalogo, logger = console) {
     this.servicio = servicioCatalogo;
+    this.logger = logger;
   }
 
   listar(req, res) {
@@ -28,7 +29,7 @@ class CatalogoController {
       return res.status(codigoExitoso).json(await accion());
     } catch (error) {
       if (error instanceof ErrorApi) return res.status(error.status).json({ error: error.message });
-      console.error(error);
+      this.logger.error(`Error inesperado: ${error.stack}`);
       return res.status(500).json({ error: 'Error interno del servidor' });
     }
   }
