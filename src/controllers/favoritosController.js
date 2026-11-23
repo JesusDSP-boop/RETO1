@@ -12,23 +12,23 @@ class FavoritosController {
   }
 
   listar(req, res) {
-    return this._responder(res, 200, () => this.servicio.listar());
+    return this._responder(res, 200, () => this.servicio.listar(req.usuario));
   }
 
   obtener(req, res) {
-    return this._responder(res, 200, () => this.servicio.obtener(req.params.id));
+    return this._responder(res, 200, () => this.servicio.obtener(req.params.id, req.usuario));
   }
 
   crear(req, res) {
-    return this._responder(res, 201, () => this.servicio.crear(req.body));
+    return this._responder(res, 201, () => this.servicio.crear(req.body, req.usuario));
   }
 
   actualizar(req, res) {
-    return this._responder(res, 200, () => this.servicio.actualizar(req.params.id, req.body));
+    return this._responder(res, 200, () => this.servicio.actualizar(req.params.id, req.body, req.usuario));
   }
 
   eliminar(req, res) {
-    return this._responder(res, 200, () => this.servicio.eliminar(req.params.id));
+    return this._responder(res, 200, () => this.servicio.eliminar(req.params.id, req.usuario));
   }
 
   // Ejecuta la acción y convierte el resultado (o el error) en una respuesta HTTP.

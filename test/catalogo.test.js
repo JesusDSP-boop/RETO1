@@ -12,6 +12,17 @@ function crearRepoFalso(iniciales = []) {
   return {
     filas,
     contar: async () => filas.length,
+    buscarPorDeezerId: async (id) => filas.find((f) => f.deezerId === id) ?? null,
+    buscarPorDeezerIds: async (ids) => filas.filter((f) => ids.includes(f.deezerId)),
+    guardarUno: async (cancion) => cancion,
+    eliminar: async (cancion) => {
+      const indice = filas.findIndex((f) => f.deezerId === cancion.deezerId);
+      if (indice !== -1) filas.splice(indice, 1);
+    },
+    eliminarVarios: async (canciones) => {
+      const ids = new Set(canciones.map((c) => c.deezerId));
+      for (let i = filas.length - 1; i >= 0; i -= 1) if (ids.has(filas[i].deezerId)) filas.splice(i, 1);
+    },
     guardar: async (canciones) => {
       let nuevas = 0;
       let actualizadas = 0;
@@ -148,6 +159,23 @@ test('Listar: usa el formato del Reto 1 (id de Deezer), pagina y busca', async (
   const busqueda = await servicio.listar({ q: 'Artista 4' });
   assert.equal(busqueda.total, 1);
   assert.equal(busqueda.canciones[0].id, 4);
+});
+
+test('Catálogo: el admin edita título/notas y elimina una selección; valida IDs y campos', async () => {
+  const repo = crearRepoFalso(rango(1, 2));
+  const servicio = crear(repo, crearDeezerFalso());
+
+  const editada = await servicio.actualizar(1, { titulo: '  Nueva versión ', notas: '  Mi nota ' });
+  assert.equal(editada.titulo, 'Nueva versión');
+  assert.equal(editada.notas, 'Mi nota');
+  assert.equal(repo.filas[0].notas, 'Mi nota');
+
+  await assert.rejects(servicio.actualizar(1, { titulo: ' ' }), (error) => error.status === 400);
+  await assert.rejects(servicio.actualizar('no-id', { notas: 'x' }), (error) => error.status === 400);
+  const borradas = await servicio.eliminarSeleccion([1, 2]);
+  assert.equal(borradas.eliminadas, 2);
+  assert.equal(repo.filas.length, 0);
+  await assert.rejects(servicio.eliminar(999), (error) => error.status === 404);
 });
 
 test('Configuración (.env): valores por defecto y límites', () => {

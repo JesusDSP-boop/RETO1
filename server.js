@@ -3,7 +3,8 @@ const crearApp = require('./src/app');
 const { crearLogger } = require('./src/logger');
 const { leerConfig, leerConfigSeguridad } = require('./src/config');
 const { crearCatalogoServicio } = require('./src/composicion');
-const { dataSource, FavoritoSchema, iniciarBaseDeDatos } = require('./src/database/dataSource');
+const AuditoriaService = require('./src/services/auditoriaService');
+const { dataSource, FavoritoSchema, AuditoriaSchema, iniciarBaseDeDatos } = require('./src/database/dataSource');
 
 const PUERTO = process.env.PORT || 3000;
 const seguridad = leerConfigSeguridad();
@@ -30,11 +31,13 @@ async function arrancar() {
   logger.info(`Base de datos lista: ${dataSource.options.database}`);
 
   const config = leerConfig();
-  const catalogoServicio = crearCatalogoServicio(dataSource, { ...config, logger });
+  const auditoriaService = new AuditoriaService(dataSource.getRepository(AuditoriaSchema));
+  const catalogoServicio = crearCatalogoServicio(dataSource, { ...config, logger, auditoriaService });
   const app = crearApp({
     repositorioFavoritos: dataSource.getRepository(FavoritoSchema),
     urlApiExterna: process.env.URL_API_EXTERNA,
     catalogoServicio,
+    auditoriaService,
     logger,
     config: seguridad,
   });

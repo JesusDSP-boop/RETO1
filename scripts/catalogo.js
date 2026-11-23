@@ -2,7 +2,8 @@
 require('dotenv').config();
 const { leerConfig } = require('../src/config');
 const { crearCatalogoServicio } = require('../src/composicion');
-const { dataSource, iniciarBaseDeDatos } = require('../src/database/dataSource');
+const AuditoriaService = require('../src/services/auditoriaService');
+const { dataSource, AuditoriaSchema, iniciarBaseDeDatos } = require('../src/database/dataSource');
 
 const AYUDA = `Uso: node scripts/catalogo.js <comando>
 
@@ -31,19 +32,20 @@ async function main() {
 
   await iniciarBaseDeDatos();
   try {
-    const servicio = crearCatalogoServicio(dataSource, config);
+    const auditoriaService = new AuditoriaService(dataSource.getRepository(AuditoriaSchema));
+    const servicio = crearCatalogoServicio(dataSource, { ...config, auditoriaService });
     const progreso = (n, tope) => process.stdout.write(`\rDescargando... ${n} de ${tope}   `);
 
     if (comando === 'estado') {
       console.log(`Canciones en la tabla catalogo: ${(await servicio.estado()).total}`);
     } else if (comando === 'borrar') {
-      const r = await servicio.vaciar();
+      const r = await servicio.vaciar({ usuario: 'admin (terminal)', rol: 'admin' });
       console.log(`Catálogo borrado: ${r.eliminadas} canciones eliminadas.`);
     } else if (comando === 'reiniciar') {
-      const r = await servicio.cargar('reiniciar', progreso);
+      const r = await servicio.cargar('reiniciar', progreso, { usuario: 'admin (terminal)', rol: 'admin' });
       console.log(`\nCatálogo reiniciado: ahora tiene ${r.total} canciones.`);
     } else {
-      const r = await servicio.cargar('completo', progreso);
+      const r = await servicio.cargar('completo', progreso, { usuario: 'admin (terminal)', rol: 'admin' });
       console.log(`\nListo: ${r.nuevas} canciones nuevas y ${r.actualizadas} actualizadas. Total en el catálogo: ${r.total}.`);
     }
   } finally {

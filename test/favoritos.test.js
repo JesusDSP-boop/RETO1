@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const FavoritosService = require('../src/services/favoritosService');
 const FavoritosController = require('../src/controllers/favoritosController');
 const NotificacionService = require('../src/services/notificacionService');
+const actor = { id: 1, usuario: 'cliente.test', rol: 'cliente' };
 
 // Repositorio simulado: imita los métodos de TypeORM que usa el servicio.
 // Así las pruebas no necesitan base de datos ni internet.
@@ -12,7 +13,7 @@ function crearRepositorioFalso() {
   const coincide = (fila, condicion) => Object.entries(condicion).every(([k, v]) => fila[k] === v);
   return {
     filas,
-    find: async () => [...filas].sort((a, b) => a.id - b.id),
+    find: async ({ where = {} } = {}) => filas.filter((fila) => coincide(fila, where)).sort((a, b) => a.id - b.id),
     findOneBy: async (condicion) => filas.find((f) => coincide(f, condicion)) ?? null,
     create: (datos) => ({ ...datos }),
     save: async (entidad) => {
@@ -75,7 +76,7 @@ const cancion = {
 test('Crear: guarda el favorito, responde 201 con su id y avisa a la API externa', async () => {
   const { controlador, notificador } = montar();
   const res = crearRes();
-  await controlador.crear({ body: cancion }, res);
+  await controlador.crear({ body: cancion, usuario: actor }, res);
   assert.equal(res.codigo, 201);
   assert.equal(res.cuerpo.id, 1);
   assert.equal(res.cuerpo.deezerId, 3135556);
@@ -86,7 +87,7 @@ test('Crear: guarda el favorito, responde 201 con su id y avisa a la API externa
 test('Crear: valida los campos obligatorios y responde 400', async () => {
   const { controlador } = montar();
   const res = crearRes();
-  await controlador.crear({ body: { titulo: 'Sin id ni artista' } }, res);
+  await controlador.crear({ body: { titulo: 'Sin id ni artista' }, usuario: actor }, res);
   assert.equal(res.codigo, 400);
   assert.match(res.cuerpo.error, /id/);
   assert.match(res.cuerpo.error, /artista/);
@@ -94,64 +95,64 @@ test('Crear: valida los campos obligatorios y responde 400', async () => {
 
 test('Crear: no permite guardar la misma canción dos veces (409)', async () => {
   const { controlador } = montar();
-  await controlador.crear({ body: cancion }, crearRes());
+  await controlador.crear({ body: cancion, usuario: actor }, crearRes());
   const res = crearRes();
-  await controlador.crear({ body: cancion }, res);
+  await controlador.crear({ body: cancion, usuario: actor }, res);
   assert.equal(res.codigo, 409);
 });
 
 test('Crear: si la API externa falla, el favorito igual queda guardado', async () => {
   const { controlador, repositorio } = montar({ fallaNotificacion: true });
   const res = crearRes();
-  await controlador.crear({ body: cancion }, res);
+  await controlador.crear({ body: cancion, usuario: actor }, res);
   assert.equal(res.codigo, 201);
   assert.equal(repositorio.filas.length, 1);
 });
 
 test('Leer: lista todos, busca por id y responde 404 si no existe', async () => {
   const { controlador } = montar();
-  await controlador.crear({ body: cancion }, crearRes());
+  await controlador.crear({ body: cancion, usuario: actor }, crearRes());
 
   const lista = crearRes();
-  await controlador.listar({}, lista);
+  await controlador.listar({ usuario: actor }, lista);
   assert.equal(lista.codigo, 200);
   assert.equal(lista.cuerpo.length, 1);
 
   const uno = crearRes();
-  await controlador.obtener({ params: { id: '1' } }, uno);
+  await controlador.obtener({ params: { id: '1' }, usuario: actor }, uno);
   assert.equal(uno.codigo, 200);
 
   const noExiste = crearRes();
-  await controlador.obtener({ params: { id: '99' } }, noExiste);
+  await controlador.obtener({ params: { id: '99' }, usuario: actor }, noExiste);
   assert.equal(noExiste.codigo, 404);
 });
 
 test('Actualizar: cambia solo las notas (200) y responde 404 si no existe', async () => {
   const { controlador } = montar();
-  await controlador.crear({ body: cancion }, crearRes());
+  await controlador.crear({ body: cancion, usuario: actor }, crearRes());
 
   const res = crearRes();
-  await controlador.actualizar({ params: { id: '1' }, body: { notas: 'Para correr' } }, res);
+  await controlador.actualizar({ params: { id: '1' }, body: { notas: 'Para correr' }, usuario: actor }, res);
   assert.equal(res.codigo, 200);
   assert.equal(res.cuerpo.notas, 'Para correr');
   assert.equal(res.cuerpo.titulo, cancion.titulo);
 
   const noExiste = crearRes();
-  await controlador.actualizar({ params: { id: '99' }, body: { notas: 'x' } }, noExiste);
+  await controlador.actualizar({ params: { id: '99' }, body: { notas: 'x' }, usuario: actor }, noExiste);
   assert.equal(noExiste.codigo, 404);
 });
 
 test('Eliminar: borra el registro, lo confirma y ya no aparece en la lista', async () => {
   const { controlador } = montar();
-  await controlador.crear({ body: cancion }, crearRes());
+  await controlador.crear({ body: cancion, usuario: actor }, crearRes());
 
   const borrado = crearRes();
-  await controlador.eliminar({ params: { id: '1' } }, borrado);
+  await controlador.eliminar({ params: { id: '1' }, usuario: actor }, borrado);
   assert.equal(borrado.codigo, 200);
   assert.equal(borrado.cuerpo.mensaje, 'Favorito eliminado');
 
   const lista = crearRes();
-  await controlador.listar({}, lista);
+  await controlador.listar({ usuario: actor }, lista);
   assert.equal(lista.cuerpo.length, 0);
 });
 
@@ -192,19 +193,19 @@ test('Notificación: envía el JSON con POST a la URL configurada', async () => 
 
 test('Actualizar: edita el nombre (título) y valida que no quede vacío', async () => {
   const { controlador } = montar();
-  await controlador.crear({ body: cancion }, crearRes());
+  await controlador.crear({ body: cancion, usuario: actor }, crearRes());
 
   const ok = crearRes();
-  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '  Mi versión  ' } }, ok);
+  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '  Mi versión  ' }, usuario: actor }, ok);
   assert.equal(ok.codigo, 200);
   assert.equal(ok.cuerpo.titulo, 'Mi versión');
   assert.equal(ok.cuerpo.artista, cancion.artista);
 
   const vacio = crearRes();
-  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '   ' } }, vacio);
+  await controlador.actualizar({ params: { id: '1' }, body: { titulo: '   ' }, usuario: actor }, vacio);
   assert.equal(vacio.codigo, 400);
 
   const sinCampos = crearRes();
-  await controlador.actualizar({ params: { id: '1' }, body: {} }, sinCampos);
+  await controlador.actualizar({ params: { id: '1' }, body: {}, usuario: actor }, sinCampos);
   assert.equal(sinCampos.codigo, 400);
 });

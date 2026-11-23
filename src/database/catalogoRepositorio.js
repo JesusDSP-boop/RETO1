@@ -11,6 +11,26 @@ class CatalogoRepositorio {
     return this.repo.count();
   }
 
+  buscarPorDeezerId(deezerId) {
+    return this.repo.findOneBy({ deezerId });
+  }
+
+  buscarPorDeezerIds(deezerIds) {
+    return this.repo.find({ where: { deezerId: In(deezerIds) } });
+  }
+
+  guardarUno(cancion) {
+    return this.repo.save(cancion);
+  }
+
+  eliminar(cancion) {
+    return this.repo.remove(cancion);
+  }
+
+  eliminarVarios(canciones) {
+    return this.repo.remove(canciones);
+  }
+
   // Inserta las canciones nuevas y ACTUALIZA las que ya estaban (se reconocen por el id de Deezer).
   async guardar(canciones) {
     const existentes = await this.repo.find({

@@ -11,6 +11,7 @@ module.exports = new EntitySchema({
     deezerId: { type: 'integer', unique: true }, // id de Deezer; evita guardar la misma canción dos veces
     titulo: { type: 'varchar' },
     artista: { type: 'varchar' },
+    notas: { type: 'text', nullable: true },
     album: { type: 'varchar', nullable: true },
     portada: { type: 'varchar', nullable: true },
     duracion: { type: 'integer', nullable: true },

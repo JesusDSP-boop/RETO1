@@ -190,4 +190,4 @@ Casos que se hacen fuera de Postman:
 - [ ] La variable `apiKey` de Postman tiene tu clave.
 - [ ] `deezerService.js` está restaurado (sin la dirección rota).
 - [ ] Tienes internet (Deezer es una API externa).
-- [ ] Nombres de los integrantes en el README.
+

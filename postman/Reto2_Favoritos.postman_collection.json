@@ -13,13 +13,53 @@
       "value": "1"
     },
     {
-      "key": "apiKey",
-      "value": "PEGA_AQUI_TU_API_KEY"
+      "key": "usuario",
+      "value": "cliente1"
+    },
+    {
+      "key": "password",
+      "value": "cambia-esta-clave-123"
     }
   ],
   "item": [
     {
-      "name": "1. POST crear favorito",
+    "name": "1. POST registrar cliente (una sola vez)",
+    "request": {
+      "method": "POST",
+      "header": [
+        { "key": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usuario\": \"{{usuario}}\",\n  \"password\": \"{{password}}\"\n}"
+      },
+      "url": {
+        "raw": "{{baseUrl}}/api/auth/registro",
+        "host": ["{{baseUrl}}"],
+        "path": ["api", "auth", "registro"]
+      }
+    }
+    },
+    {
+    "name": "2. POST iniciar sesión cliente",
+    "request": {
+      "method": "POST",
+      "header": [
+        { "key": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mode": "raw",
+        "raw": "{\n  \"usuario\": \"{{usuario}}\",\n  \"password\": \"{{password}}\"\n}"
+      },
+      "url": {
+        "raw": "{{baseUrl}}/api/auth/login",
+        "host": ["{{baseUrl}}"],
+        "path": ["api", "auth", "login"]
+      }
+    }
+    },
+    {
+    "name": "3. POST crear favorito (sin API key)",
       "event": [
         {
           "listen": "test",
@@ -39,10 +79,6 @@
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "x-api-key",
-            "value": "{{apiKey}}"
           }
         ],
         "body": {
@@ -62,7 +98,7 @@
       }
     },
     {
-      "name": "2. GET listar favoritos",
+      "name": "4. GET listar favoritos",
       "request": {
         "method": "GET",
         "url": {
@@ -78,7 +114,7 @@
       }
     },
     {
-      "name": "3. GET favorito por id",
+      "name": "5. GET favorito por id",
       "request": {
         "method": "GET",
         "url": {
@@ -95,17 +131,13 @@
       }
     },
     {
-      "name": "4. PUT editar nombre y notas",
+      "name": "6. PUT editar nombre y notas (sin API key)",
       "request": {
         "method": "PUT",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
-          },
-          {
-            "key": "x-api-key",
-            "value": "{{apiKey}}"
           }
         ],
         "body": {
@@ -126,7 +158,7 @@
       }
     },
     {
-      "name": "5. DELETE eliminar favorito",
+      "name": "7. DELETE eliminar favorito (sin API key)",
       "request": {
         "method": "DELETE",
         "url": {
@@ -140,12 +172,7 @@
             "{{favoritoId}}"
           ]
         },
-        "header": [
-          {
-            "key": "x-api-key",
-            "value": "{{apiKey}}"
-          }
-        ]
+        "header": []
       }
     }
   ]

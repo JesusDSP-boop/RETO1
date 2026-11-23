@@ -1,5 +1,5 @@
 const ErrorApi = require('../errores');
-const { validarConsulta } = require('../validacion');
+const { validarConsulta, MAX_TEXTO } = require('../validacion');
 
 const pausa = (ms) => new Promise((resolver) => setTimeout(resolver, ms));
 
@@ -9,6 +9,7 @@ const aJson = (f) => ({
   titulo: f.titulo,
   artista: f.artista,
   album: f.album,
+  notas: f.notas ?? null,
   portada: f.portada,
   duracion: f.duracion,
   preview: f.preview,
@@ -37,6 +38,7 @@ class CatalogoService {
     this.cargaCompleta = config.cargaCompleta ?? 5000;
     this.pausaMs = config.pausaMs ?? 200; // Deezer permite unas 50 peticiones cada 5 segundos
     this.log = config.logger ?? console; // el logger también se inyecta (Winston en producción)
+    this.auditoriaService = config.auditoriaService ?? null;
     this.carga = { activa: false, modo: null, objetivo: 0, guardadas: 0, error: null };
     this.tarea = null;
   }
@@ -63,10 +65,12 @@ class CatalogoService {
     return modo;
   }
 
-  async _correr(modo, alProgreso) {
+  async _correr(modo, alProgreso, actor = { usuario: 'sistema', rol: 'sistema' }) {
     try {
       const resumen = await this._descargarYGuardar(modo, alProgreso);
-      return { ...resumen, total: await this.repositorio.contar() };
+      const resultado = { ...resumen, total: await this.repositorio.contar() };
+      await this._auditar(actor, `carga_${modo}`, null, resultado);
+      return resultado;
     } catch (error) {
       this.carga.error = error.message;
       throw error;
@@ -76,14 +80,14 @@ class CatalogoService {
   }
 
   // Terminal y arranque: espera a que termine la carga.
-  async cargar(modo = 'inicial', alProgreso) {
-    return this._correr(this._preparar(modo), alProgreso);
+  async cargar(modo = 'inicial', alProgreso, actor) {
+    return this._correr(this._preparar(modo), alProgreso, actor);
   }
 
   // Página web: responde enseguida y descarga en segundo plano (la página consulta el avance).
-  iniciarCarga(modo = 'inicial') {
+  iniciarCarga(modo = 'inicial', actor) {
     this._preparar(modo);
-    this.tarea = this._correr(modo).catch((error) => this.log.error(`[catálogo] La carga falló: ${error.stack}`));
+    this.tarea = this._correr(modo, undefined, actor).catch((error) => this.log.error(`[catálogo] La carga falló: ${error.stack}`));
     return { ...this.carga };
   }
 
@@ -93,12 +97,87 @@ class CatalogoService {
     return this.cargar('inicial');
   }
 
-  async vaciar() {
+  async vaciar(actor) {
     if (this.carga.activa) throw new ErrorApi(409, 'Hay una carga en curso. Espera a que termine para borrar el catálogo');
     const eliminadas = await this.repositorio.contar();
     await this.repositorio.vaciar();
     this.carga.error = null;
+    await this._auditar(actor, 'borrar_todo', null, { eliminadas });
     return { mensaje: 'Catálogo borrado', eliminadas };
+  }
+
+  async actualizar(idTexto, datos = {}, actor) {
+    if (this.carga.activa) throw new ErrorApi(409, 'Hay una carga en curso. Espera a que termine para editar el catálogo');
+    const deezerId = this._idValido(idTexto);
+    const cancion = await this.repositorio.buscarPorDeezerId(deezerId);
+    if (!cancion) throw new ErrorApi(404, 'Canción no encontrada en el catálogo');
+    if (!datos || typeof datos !== 'object' || Array.isArray(datos)) {
+      throw new ErrorApi(400, 'El cuerpo debe ser un objeto JSON');
+    }
+    const cambios = {};
+    if ('titulo' in datos) {
+      const titulo = typeof datos.titulo === 'string' ? datos.titulo.trim() : '';
+      if (!titulo) throw new ErrorApi(400, 'El nombre de la canción no puede estar vacío');
+      if (titulo.length > MAX_TEXTO) throw new ErrorApi(400, `El nombre no puede tener más de ${MAX_TEXTO} caracteres`);
+      cambios.titulo = titulo;
+    }
+    if ('notas' in datos) {
+      if (datos.notas !== null && typeof datos.notas !== 'string') {
+        throw new ErrorApi(400, 'Envía el campo "notas" como texto o como null');
+      }
+      const notas = typeof datos.notas === 'string' && datos.notas.trim() ? datos.notas.trim() : null;
+      if (notas && notas.length > 500) throw new ErrorApi(400, 'Las notas no pueden tener más de 500 caracteres');
+      cambios.notas = notas;
+    }
+    if (Object.keys(cambios).length === 0) throw new ErrorApi(400, 'Envía "titulo" y/o "notas" para actualizar');
+    const anterior = { titulo: cancion.titulo, notas: cancion.notas };
+    Object.assign(cancion, cambios);
+    const guardada = await this.repositorio.guardarUno(cancion);
+    await this._auditar(actor, 'actualizar', deezerId, { anterior, cambios });
+    return aJson(guardada);
+  }
+
+  async eliminar(idTexto, actor) {
+    if (this.carga.activa) throw new ErrorApi(409, 'Hay una carga en curso. Espera a que termine para eliminar canciones');
+    const deezerId = this._idValido(idTexto);
+    const cancion = await this.repositorio.buscarPorDeezerId(deezerId);
+    if (!cancion) throw new ErrorApi(404, 'Canción no encontrada en el catálogo');
+    await this.repositorio.eliminar(cancion);
+    await this._auditar(actor, 'eliminar', deezerId, { titulo: cancion.titulo, deezerId });
+    return { mensaje: 'Canción eliminada del catálogo', id: deezerId };
+  }
+
+  async eliminarSeleccion(ids, actor) {
+    if (this.carga.activa) throw new ErrorApi(409, 'Hay una carga en curso. Espera a que termine para eliminar canciones');
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) {
+      throw new ErrorApi(400, 'Envía entre 1 y 200 ids de canciones');
+    }
+    const deezerIds = [...new Set(ids.map((id) => this._idValido(id)))];
+    const canciones = await this.repositorio.buscarPorDeezerIds(deezerIds);
+    if (canciones.length === 0) throw new ErrorApi(404, 'No se encontraron canciones para eliminar');
+    await this.repositorio.eliminarVarios(canciones);
+    for (const cancion of canciones) {
+      await this._auditar(actor, 'eliminar', cancion.deezerId, { titulo: cancion.titulo, deezerId: cancion.deezerId, seleccion: true });
+    }
+    return { mensaje: 'Canciones eliminadas del catálogo', eliminadas: canciones.length };
+  }
+
+  _idValido(valor) {
+    const id = Number(valor);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new ErrorApi(400, 'El id debe ser un entero positivo');
+    return id;
+  }
+
+  _auditar(actor, accion, entidadId, detalles) {
+    if (!this.auditoriaService) return Promise.resolve();
+    return this.auditoriaService.registrar({
+      actor: actor?.usuario || 'sistema',
+      rol: actor?.rol || 'sistema',
+      accion,
+      entidad: 'catalogo',
+      entidadId,
+      detalles,
+    });
   }
 
   async _descargarYGuardar(modo, alProgreso) {

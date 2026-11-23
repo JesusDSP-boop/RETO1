@@ -18,30 +18,53 @@ class FavoritosService {
    * El servicio recibe el repositorio de TypeORM y el notificador de la API externa.
    * No los crea él mismo, así las pruebas pueden pasarle versiones simuladas.
    */
-  constructor(repositorio, notificador) {
+  constructor(repositorio, notificador, auditoriaService = null) {
     this.repositorio = repositorio;
     this.notificador = notificador;
+    this.auditoriaService = auditoriaService;
   }
 
-  listar() {
-    return this.repositorio.find({ order: { id: 'ASC' } });
+  async _auditar(actor, accion, favorito, detalles) {
+    if (!this.auditoriaService) return;
+    await this.auditoriaService.registrar({
+      actor: actor?.usuario || 'cliente',
+      rol: actor?.rol || 'cliente',
+      accion,
+      entidad: 'favorito',
+      entidadId: favorito.id,
+      detalles,
+    });
   }
 
-  async obtener(idTexto) {
+  _usuarioId(actor) {
+    if (!actor || !Number.isSafeInteger(actor.id)) {
+      throw new ErrorApi(401, 'Inicia sesión con una cuenta para acceder a tus favoritos');
+    }
+    return actor.id;
+  }
+
+  listar(actor) {
+    const usuarioId = this._usuarioId(actor);
+    return this.repositorio.find({ where: { usuarioId }, order: { id: 'ASC' } });
+  }
+
+  async obtener(idTexto, actor) {
     const id = aIdValido(idTexto);
-    const favorito = await this.repositorio.findOneBy({ id });
+    const favorito = await this.repositorio.findOneBy({ id, usuarioId: this._usuarioId(actor) });
     if (!favorito) throw new ErrorApi(404, 'Favorito no encontrado');
     return favorito;
   }
 
-  async crear(datos) {
+  async crear(datos, actor) {
     validarCancion(datos);
+    const usuarioId = this._usuarioId(actor);
 
-    const repetido = await this.repositorio.findOneBy({ deezerId: datos.id });
+    const repetido = await this.repositorio.findOneBy({ deezerId: datos.id, usuarioId });
     if (repetido) throw new ErrorApi(409, 'Esa canción ya está en tus favoritos');
 
     const nuevo = this.repositorio.create({
       deezerId: datos.id,
+      usuarioId,
       titulo: datos.titulo.trim(),
       artista: datos.artista.trim(),
       album: textoOpcional(datos.album),
@@ -60,12 +83,13 @@ class FavoritosService {
       titulo: guardado.titulo,
       artista: guardado.artista,
     });
+    await this._auditar(actor, 'crear', guardado, { deezerId: guardado.deezerId, titulo: guardado.titulo, artista: guardado.artista });
     return guardado;
   }
 
-  async actualizar(idTexto, datos = {}) {
+  async actualizar(idTexto, datos = {}, actor) {
     const id = aIdValido(idTexto);
-    const favorito = await this.repositorio.findOneBy({ id });
+    const favorito = await this.repositorio.findOneBy({ id, usuarioId: this._usuarioId(actor) });
     if (!favorito) throw new ErrorApi(404, 'Favorito no encontrado');
 
     // Solo se pueden editar el nombre (titulo) y las notas. Basta con enviar uno de los dos.
@@ -87,15 +111,20 @@ class FavoritosService {
     if (Object.keys(cambios).length === 0) {
       throw new ErrorApi(400, 'Envía "titulo" y/o "notas" para actualizar');
     }
+    const anterior = { titulo: favorito.titulo, notas: favorito.notas };
     this.repositorio.merge(favorito, cambios);
-    return this.repositorio.save(favorito);
+    const guardado = await this.repositorio.save(favorito);
+    await this._auditar(actor, 'actualizar', guardado, { anterior, cambios });
+    return guardado;
   }
 
-  async eliminar(idTexto) {
+  async eliminar(idTexto, actor) {
     const id = aIdValido(idTexto);
-    const favorito = await this.repositorio.findOneBy({ id });
+    const favorito = await this.repositorio.findOneBy({ id, usuarioId: this._usuarioId(actor) });
     if (!favorito) throw new ErrorApi(404, 'Favorito no encontrado');
+    const eliminado = { ...favorito };
     await this.repositorio.remove(favorito);
+    await this._auditar(actor, 'eliminar', eliminado, { deezerId: eliminado.deezerId, titulo: eliminado.titulo });
     return { mensaje: 'Favorito eliminado', id };
   }
 }

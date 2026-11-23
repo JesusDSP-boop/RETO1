@@ -41,7 +41,10 @@ h2{margin:0 0 4px;font-size:1.6rem}
 .btn.pel{border-color:var(--rojo);background:var(--rojo);color:var(--blanco)}
 #estado{min-height:1.5em;margin:0 0 8px;color:var(--rojo)}
 ol,ul{margin:0;padding:0;list-style:none}
-.fila{display:grid;grid-template-columns:36px 56px 1fr auto auto;align-items:center;gap:14px;padding:10px 8px;border-top:1px solid var(--linea)}
+.fila{display:grid;grid-template-columns:36px 56px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:10px 8px;border-top:1px solid var(--linea)}
+.fila.admin{grid-template-columns:36px 56px minmax(0,1fr) auto auto auto}
+.fila.admin.seleccionando{grid-template-columns:32px 36px 56px minmax(0,1fr) auto auto auto}
+.fila .chk{position:static;width:32px;height:32px;padding:0;background:none}
 .num{font-size:1.7rem;font-weight:800;text-align:right;color:var(--azul)}
 .texto{display:flex;flex-direction:column;min-width:0}
 .texto strong,.texto>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -79,6 +82,8 @@ pre{max-height:320px;overflow:auto;margin:12px 0 0;padding:12px;border-radius:8p
 .btn-acceso b{padding:0 8px;border-radius:99px;background:var(--sol);color:var(--tinta);font-size:.8rem}
 progress{width:100%;height:10px;margin:0 0 16px;accent-color:var(--azul)}
 .paginas{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px}
+.auditoria{display:grid;gap:8px;margin:12px 0;padding:0;list-style:none}
+.auditoria li{padding:10px 12px;border:1px solid var(--linea);border-radius:8px;background:var(--blanco);font-size:.9rem}
 #cat-info{margin:0 0 10px}
 dialog{width:min(92vw,420px);padding:24px;border:0;border-radius:16px;background:var(--blanco);color:var(--tinta);box-shadow:0 24px 60px #0e103066}
 dialog::backdrop{background:#0e1030b3}
@@ -86,6 +91,7 @@ dialog h2{margin-bottom:12px}
 dialog label{display:grid;gap:6px;margin-bottom:14px;font-weight:700}
 dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(--tinta);border-radius:8px;font-weight:400}
 .acciones{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+#mensaje-acceso{padding:10px 12px;border-radius:8px;background:#FCE8E6;color:var(--rojo);font-weight:700}
 #avisos{position:fixed;left:50%;bottom:108px;z-index:30;display:grid;gap:8px;width:max-content;max-width:92vw;transform:translateX(-50%)}
 .aviso{padding:10px 16px;border-radius:10px;background:var(--tinta);color:var(--blanco);box-shadow:0 8px 24px #0e103055}
 .aviso.mal{background:var(--rojo)}
@@ -94,7 +100,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 #pp{width:48px;height:48px;border:0;border-radius:50%;background:var(--sol);color:var(--tinta);font-weight:800}
 #barra{width:100%;accent-color:var(--sol)}
 .reproductor :focus-visible,.activa :focus-visible,.tab[aria-pressed=true]:focus-visible{outline-color:var(--sol)}
-@media(max-width:640px){.disco{width:180px;height:180px;right:-50px;top:-30px}.dur{display:none}.fila{grid-template-columns:28px 56px 1fr auto}.reproductor{grid-template-columns:56px 1fr 48px;padding:12px 16px}#barra,#tiempo{grid-column:1/-1}body{padding-bottom:160px}#avisos{bottom:150px}}
+@media(max-width:640px){.disco{width:180px;height:180px;right:-50px;top:-30px}.dur{display:none}.fila{grid-template-columns:28px 56px minmax(0,1fr) auto;gap:8px}.fila.admin{grid-template-columns:28px 56px minmax(0,1fr) auto auto}.fila.admin.seleccionando{grid-template-columns:26px 28px 48px minmax(0,1fr) auto auto}.reproductor{grid-template-columns:56px 1fr 48px;padding:12px 16px}#barra,#tiempo{grid-column:1/-1}body{padding-bottom:160px}#avisos{bottom:150px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -110,7 +116,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 <nav class="tabs" aria-label="Secciones">
   <button class="tab" type="button" data-vista="catalogo" aria-pressed="true">Catálogo <b id="cont-cat">0</b></button>
   <button class="tab" type="button" data-vista="favoritos" aria-pressed="false">Mis favoritas <b id="cont-favs">0</b></button>
-  <button class="btn-acceso" type="button" id="btn-acceso">Clave de acceso <b id="est-clave">sin clave</b></button>
+  <button class="btn-acceso" type="button" id="btn-acceso">Acceso <b id="est-clave">sin sesión</b></button>
 </nav>
 
 <main>
@@ -118,9 +124,16 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
     <div class="barra">
       <h2>Catálogo</h2>
       <div class="grupo">
-        <button class="btn pri" type="button" id="btn-obtener">Obtener todo</button>
-        <button class="btn oscuro" type="button" id="btn-reiniciar">Reiniciar</button>
-        <button class="btn pel" type="button" id="btn-borrar">Borrar todo</button>
+        <span class="grupo" id="grupo-cat-admin" hidden>
+          <button class="btn" type="button" id="btn-sel-cat" aria-pressed="false">Seleccionar</button>
+          <button class="btn pel" type="button" id="btn-borrar-sel-cat" disabled>Eliminar (0)</button>
+          <button class="btn" type="button" id="btn-auditoria">Ver historial</button>
+        </span>
+        <span class="grupo" id="grupo-cat-operaciones" hidden>
+          <button class="btn pri" type="button" id="btn-obtener">Obtener todo</button>
+          <button class="btn oscuro" type="button" id="btn-reiniciar">Reiniciar</button>
+          <button class="btn pel" type="button" id="btn-borrar">Borrar todo</button>
+        </span>
       </div>
     </div>
     <p id="cat-info" role="status"></p>
@@ -135,6 +148,10 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
       <span id="cat-pag"></span>
       <button class="btn" type="button" id="cat-sig">Siguiente</button>
     </div>
+    <section id="panel-auditoria" hidden>
+      <h2>Historial de cambios</h2>
+      <ol class="auditoria" id="lista-auditoria"></ol>
+    </section>
   </section>
 
   <section id="vista-favoritos" hidden>
@@ -176,7 +193,7 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 
 <dialog id="dlg-borrar">
   <form method="dialog">
-    <h2>Eliminar de favoritos</h2>
+    <h2 id="b-titulo">Eliminar canción</h2>
     <p id="b-texto"></p>
     <div class="acciones">
       <button class="btn" type="button" data-cerrar>Cancelar</button>
@@ -187,12 +204,19 @@ dialog input,dialog textarea{width:100%;padding:10px 12px;border:2px solid var(-
 
 <dialog id="dlg-acceso">
   <form method="dialog">
-    <h2>Clave de acceso</h2>
-    <p>Agregar, editar, eliminar y cargar el catálogo requieren la clave de la API (variable API_KEY del servidor). Solo se guarda en esta pestaña del navegador.</p>
-    <label>Clave<input id="clave-api" type="password" autocomplete="off"></label>
+    <h2>Acceso</h2>
+    <p>Inicia sesión con una cuenta existente o crea una. El usuario debe tener de 3 a 40 letras o números (pueden ser solo números), sin símbolos ni espacios. Deja la API_KEY vacía para una cuenta cliente o introdúcela para crear una cuenta administradora.</p>
+    <label>Usuario<input id="nombre-usuario" autocomplete="username" maxlength="40"></label>
+    <label>Contraseña<input id="password-usuario" type="password" autocomplete="current-password"></label>
+    <p id="mensaje-acceso" role="alert" aria-live="assertive" hidden></p>
+    <div class="acciones">
+      <button class="btn" type="button" id="btn-login">Iniciar sesión</button>
+      <button class="btn" type="button" id="btn-registro">Crear cuenta</button>
+    </div>
+    <label>API_KEY para crear cuenta de administrador (opcional)<input id="clave-api" type="password" autocomplete="off"></label>
     <div class="acciones">
       <button class="btn" type="button" data-cerrar>Cancelar</button>
-      <button class="btn pri" value="ok">Guardar</button>
+      <button class="btn pel" type="button" id="btn-logout" hidden>Cerrar sesión</button>
     </div>
   </form>
 </dialog>
@@ -260,40 +284,96 @@ function aviso(texto, error) {
 }
 
 // ---------- clave de acceso (autenticación) ----------
-const claveApi = () => sessionStorage.getItem('claveApi') || '';
-function mostrarEstadoClave() { $('#est-clave').textContent = claveApi() ? 'lista' : 'sin clave'; }
-function pedirClave() {
-  $('#clave-api').value = claveApi();
-  $('#dlg-acceso').returnValue = '';
-  $('#dlg-acceso').showModal();
+let usuarioActual = null;
+function esAdmin() { return usuarioActual?.rol === 'admin'; }
+function mostrarEstadoClave() {
+  $('#est-clave').textContent = usuarioActual ? `${usuarioActual.rol}: ${usuarioActual.usuario}` : 'sin sesión';
+  $('#grupo-cat-admin').hidden = !esAdmin();
+  $('#grupo-cat-operaciones').hidden = !esAdmin();
+  document.querySelector('[data-vista="favoritos"]').hidden = usuarioActual?.rol === 'admin';
+  if (usuarioActual?.rol === 'admin' && !$('#vista-favoritos').hidden) ir('catalogo');
+  if (!esAdmin()) {
+    $('#panel-auditoria').hidden = true;
+    $('#lista-auditoria').replaceChildren();
+    modoSelCat = false;
+    seleccionCat.clear();
+  }
+  $('#btn-logout').hidden = !usuarioActual;
+  pintarCatalogo();
 }
-$('#btn-acceso').onclick = pedirClave;
-$('#dlg-acceso').addEventListener('close', (e) => {
-  if (e.target.returnValue !== 'ok') return;
-  sessionStorage.setItem('claveApi', $('#clave-api').value.trim());
-  mostrarEstadoClave();
-  aviso('Clave guardada en esta pestaña');
-});
+function pedirAcceso() {
+  $('#nombre-usuario').value = usuarioActual?.usuario || '';
+  $('#mensaje-acceso').hidden = true;
+  $('#dlg-acceso').returnValue = '';
+  if (!$('#dlg-acceso').open) $('#dlg-acceso').showModal();
+}
+function mostrarErrorAcceso(mensaje) {
+  $('#mensaje-acceso').textContent = mensaje;
+  $('#mensaje-acceso').hidden = false;
+}
+$('#btn-acceso').onclick = pedirAcceso;
 
 // ---------- comunicación con NUESTRO Back End ----------
 async function api(url, opciones = {}, mostrar = true) {
-  const metodo = opciones.method || 'GET';
-  // Las operaciones que modifican datos (POST, PUT, DELETE) envían la clave de la API.
-  if (metodo !== 'GET') opciones = { ...opciones, headers: { ...opciones.headers, 'x-api-key': claveApi() } };
   const respuesta = await fetch(url, opciones);
   const datos = await respuesta.json().catch(() => ({}));
   if (mostrar) {
     $('#json').textContent = `${opciones?.method || 'GET'} ${url}  →  ${respuesta.status}\n\n${JSON.stringify(datos, null, 2)}`;
   }
-  if (respuesta.status === 401) pedirClave(); // sin clave o clave incorrecta
+  if (respuesta.status === 401 && (url.startsWith('/api/catalogo') || url.startsWith('/api/auditoria') || url.startsWith('/api/favoritos'))) {
+    pedirAcceso();
+    mostrarErrorAcceso(datos.error || `Error ${respuesta.status}`);
+  }
   if (!respuesta.ok) throw new Error(datos.error || `Error ${respuesta.status}`);
   return datos;
 }
 const enviar = (metodo, cuerpo) => ({ method: metodo, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) });
 
+async function iniciarSesion(registrar = false) {
+  const usuario = $('#nombre-usuario').value.trim();
+  const password = $('#password-usuario').value;
+  $('#mensaje-acceso').hidden = true;
+  try {
+    if (registrar) {
+      const apiKey = $('#clave-api').value.trim();
+      await api('/api/auth/registro', enviar('POST', { usuario, password, ...(apiKey ? { apiKey } : {}) }));
+      aviso(apiKey ? 'Cuenta de administrador creada. Iniciando sesión…' : 'Cuenta de cliente creada. Iniciando sesión…');
+    }
+    usuarioActual = await api('/api/auth/login', enviar('POST', { usuario, password }));
+    $('#password-usuario').value = '';
+    $('#clave-api').value = '';
+    $('#dlg-acceso').close();
+    mostrarEstadoClave();
+    await cargarFavs();
+    aviso(`Sesión iniciada como ${usuarioActual.usuario}`);
+  } catch (error) {
+    mostrarErrorAcceso(error.message);
+    aviso(error.message, true);
+  }
+}
+$('#btn-login').onclick = () => iniciarSesion();
+$('#btn-registro').onclick = () => iniciarSesion(true);
+$('#btn-logout').onclick = async () => {
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+    usuarioActual = null;
+    favs = [];
+    seleccion.clear();
+    modoSel = false;
+    mostrarEstadoClave();
+    pintarFavs();
+    $('#dlg-acceso').close();
+    aviso('Sesión cerrada');
+  } catch (error) {
+    aviso(error.message, true);
+  }
+};
 // ---------- estado ----------
 let favs = [], cola = [], actual = -1, modoSel = false, editando = null, porBorrar = [];
 const seleccion = new Set();
+let tipoEdicion = 'favoritos', tipoBorrado = 'favoritos';
+let modoSelCat = false;
+const seleccionCat = new Set();
 const clave = (c) => c.deezerId ?? c.id; // id de Deezer, venga de Explorar o de Favoritos
 const sonando = () => cola[actual];
 const esFav = (c) => favs.some((f) => f.deezerId === c.id);
@@ -303,21 +383,48 @@ function pintarLista(destino, datos, desde = 0) {
   destino.replaceChildren(...datos.map((c, i) => {
     const fav = esFav(c);
     const activa = sonando() && clave(sonando()) === c.id;
-    return h('li', { class: 'fila' + (activa ? ' activa' : '') },
+    const fila = [
       h('span', { class: 'num' }, desde + i + 1),
       h('button', { class: 'portada', type: 'button', disabled: !c.preview, 'aria-label': `Reproducir ${c.titulo} de ${c.artista}`, onclick: () => reproducir(datos, i) },
         h('img', { src: c.portada, alt: '', loading: 'lazy' }), icono('play')),
-      h('span', { class: 'texto' }, h('strong', {}, c.titulo), h('span', {}, c.artista)),
+      h('span', { class: 'texto' }, h('strong', {}, c.titulo), h('span', {}, c.artista), c.notas && h('em', { class: 'notas' }, c.notas)),
       h('span', { class: 'dur' }, mmss(c.duracion)),
-      h('button', { class: 'icono' + (fav ? ' on' : ''), type: 'button', 'aria-pressed': String(fav), 'aria-label': fav ? `Quitar ${c.titulo} de favoritos` : `Agregar ${c.titulo} a favoritos`, onclick: () => alternarFav(c) },
-        icono('corazon', fav)));
+      h('button', { class: 'icono' + (fav ? ' on' : ''), type: 'button', disabled: esAdmin(), 'aria-pressed': String(fav), 'aria-label': fav ? `Quitar ${c.titulo} de favoritos` : `Agregar ${c.titulo} a favoritos`, onclick: () => alternarFav(c) },
+        icono('corazon', fav)),
+    ];
+    if (esAdmin()) {
+      if (modoSelCat) fila.unshift(h('label', { class: 'chk' }, h('input', {
+        type: 'checkbox', checked: seleccionCat.has(c.id), 'aria-label': `Seleccionar ${c.titulo}`,
+        onchange: (e) => marcarCatalogo(c.id, e.target),
+      })));
+      fila.push(h('span', { class: 'grupo' },
+        h('button', { class: 'icono', type: 'button', title: 'Editar catálogo', 'aria-label': `Editar ${c.titulo}`, onclick: () => abrirEditar(c, 'catalogo') }, icono('lapiz')),
+        h('button', { class: 'icono', type: 'button', title: 'Eliminar del catálogo', 'aria-label': `Eliminar ${c.titulo} del catálogo`, onclick: () => pedirBorrado([c], 'catalogo') }, icono('basura'))));
+    }
+    return h('li', { class: `fila${activa ? ' activa' : ''}${esAdmin() ? ' admin' : ''}${modoSelCat && esAdmin() ? ' seleccionando' : ''}` }, ...fila);
   }));
 }
 
 // ---------- Catálogo guardado en la base de datos ----------
 let catalogo = [], catPagina = 1, cargaActiva = false, temporizador = null;
 
-function pintarCatalogo() { pintarLista($('#lista-cat'), catalogo, (catPagina - 1) * 24); }
+function pintarCatalogo() {
+  pintarLista($('#lista-cat'), catalogo, (catPagina - 1) * 24);
+  $('#btn-sel-cat').textContent = modoSelCat ? 'Cancelar' : 'Seleccionar';
+  $('#btn-sel-cat').setAttribute('aria-pressed', String(modoSelCat));
+  $('#btn-borrar-sel-cat').textContent = `Eliminar (${seleccionCat.size})`;
+  $('#btn-borrar-sel-cat').disabled = seleccionCat.size === 0;
+}
+
+function marcarCatalogo(id, casilla) {
+  if (casilla.checked && !seleccionCat.has(id) && seleccionCat.size >= 200) {
+    casilla.checked = false;
+    aviso('Puedes eliminar hasta 200 canciones seleccionadas a la vez', true);
+    return;
+  }
+  if (casilla.checked) seleccionCat.add(id); else seleccionCat.delete(id);
+  pintarCatalogo();
+}
 
 async function cargarCatalogo() { // lista paginada que sale de la base de datos
   try {
@@ -399,9 +506,43 @@ $('#dlg-catalogo').addEventListener('close', async (e) => {
 $('#buscador-cat').onsubmit = (e) => { e.preventDefault(); catPagina = 1; cargarCatalogo(); };
 $('#cat-ant').onclick = () => { catPagina -= 1; cargarCatalogo(); };
 $('#cat-sig').onclick = () => { catPagina += 1; cargarCatalogo(); };
+$('#btn-sel-cat').onclick = () => {
+  modoSelCat = !modoSelCat;
+  seleccionCat.clear();
+  pintarCatalogo();
+};
+$('#btn-borrar-sel-cat').onclick = () => pedirBorrado(
+  [...seleccionCat].map((id) => catalogo.find((c) => c.id === id) || { id, titulo: `ID ${id}` }),
+  'catalogo',
+);
+$('#btn-auditoria').onclick = async () => {
+  const panel = $('#panel-auditoria');
+  if (!panel.hidden) {
+    panel.hidden = true;
+    return;
+  }
+  try {
+    const registros = await api('/api/auditoria?limite=200', undefined, false);
+    $('#lista-auditoria').replaceChildren(...registros.map((r) => {
+      let detalles = '';
+      try { detalles = r.detalles ? JSON.stringify(JSON.parse(r.detalles)) : ''; } catch { detalles = String(r.detalles || ''); }
+      const fecha = r.creadoEn ? new Date(r.creadoEn).toLocaleString() : '';
+      return h('li', {}, `${fecha} · ${r.actor} (${r.rol}) · ${r.accion} ${r.entidad}${r.entidadId ? ` #${r.entidadId}` : ''}${detalles ? ` · ${detalles}` : ''}`);
+    }));
+    panel.hidden = false;
+  } catch (error) {
+    aviso(error.message, true);
+  }
+};
 
 // ---------- Favoritos: CRUD (Reto 2) ----------
 async function cargarFavs() { // READ: lista todos
+  if (!usuarioActual || usuarioActual.rol !== 'cliente') {
+    favs = [];
+    pintarFavs();
+    pintarCatalogo();
+    return;
+  }
   try {
     favs = await api('/api/favoritos', undefined, false);
   } catch (error) {
@@ -433,6 +574,12 @@ function pintarFavs() {
   $('#cont-favs').textContent = favs.length;
   $('#vacio').hidden = favs.length > 0;
   $('#barra-fav').hidden = favs.length === 0;
+  $('#vacio h2').textContent = usuarioActual?.rol === 'admin' ? 'Favoritos de clientes' : usuarioActual ? 'Aún no tienes favoritas' : 'Inicia sesión como cliente';
+  $('#vacio p').textContent = usuarioActual?.rol === 'admin'
+    ? 'Las cuentas de administrador gestionan el catálogo; los favoritos pertenecen a cada cliente.'
+    : usuarioActual
+    ? 'Toca el corazón en cualquier canción para guardarla aquí.'
+    : 'Necesitas una cuenta de cliente para agregar y administrar favoritos.';
   $('#rejilla').replaceChildren(...favs.map((f, i) => {
     const activa = sonando() && clave(sonando()) === f.deezerId;
     return h('li', { class: 'tarjeta' + (activa ? ' activa' : '') + (seleccion.has(f.id) ? ' marcada' : '') },
@@ -466,8 +613,10 @@ function marcar(id, casilla) { // no vuelve a dibujar la rejilla, para no perder
 }
 
 // UPDATE (PUT): editar nombre y notas
-function abrirEditar(f) {
+function abrirEditar(f, tipo = 'favoritos') {
   editando = f;
+  tipoEdicion = tipo;
+  $('#dlg-editar h2').textContent = tipo === 'catalogo' ? 'Editar canción del catálogo' : 'Editar canción favorita';
   $('#e-titulo').value = f.titulo;
   $('#e-notas').value = f.notas || '';
   $('#dlg-editar').returnValue = '';
@@ -476,24 +625,47 @@ function abrirEditar(f) {
 $('#dlg-editar').addEventListener('close', async (e) => {
   if (e.target.returnValue !== 'ok' || !editando) return;
   try {
-    await api(`/api/favoritos/${editando.id}`, enviar('PUT', { titulo: $('#e-titulo').value, notas: $('#e-notas').value }));
+    const url = tipoEdicion === 'catalogo' ? `/api/catalogo/${editando.id}` : `/api/favoritos/${editando.id}`;
+    await api(url, enviar('PUT', { titulo: $('#e-titulo').value, notas: $('#e-notas').value }));
     aviso('Cambios guardados');
   } catch (error) {
     aviso(error.message, true);
   }
+  const tipo = tipoEdicion;
   editando = null;
-  await cargarFavs();
+  if (tipo === 'catalogo') await cargarCatalogo();
+  else await cargarFavs();
 });
 
 // DELETE: una o varias canciones, con confirmación
-function pedirBorrado(lista) {
+function pedirBorrado(lista, tipo = 'favoritos') {
   porBorrar = lista;
-  $('#b-texto').textContent = lista.length === 1 ? `¿Eliminar «${lista[0].titulo}» de tus favoritos?` : `¿Eliminar ${lista.length} canciones de tus favoritos?`;
+  tipoBorrado = tipo;
+  $('#b-titulo').textContent = tipo === 'catalogo' ? 'Eliminar del catálogo' : 'Eliminar de favoritos';
+  $('#b-texto').textContent = lista.length === 1
+    ? `¿Eliminar «${lista[0].titulo}» ${tipo === 'catalogo' ? 'del catálogo' : 'de tus favoritos'}?`
+    : `¿Eliminar ${lista.length} canciones ${tipo === 'catalogo' ? 'del catálogo' : 'de tus favoritos'}?`;
   $('#dlg-borrar').returnValue = '';
   $('#dlg-borrar').showModal();
 }
 $('#dlg-borrar').addEventListener('close', async (e) => {
   if (e.target.returnValue !== 'ok') return;
+  if (tipoBorrado === 'catalogo') {
+    try {
+      const ids = porBorrar.map((c) => c.id);
+      const resultado = ids.length > 1
+        ? await api('/api/catalogo/seleccion', enviar('DELETE', { ids }))
+        : await api(`/api/catalogo/${ids[0]}`, { method: 'DELETE' });
+      aviso(ids.length > 1 ? `${resultado.eliminadas} canciones eliminadas del catálogo` : 'Canción eliminada del catálogo');
+      ids.forEach((id) => seleccionCat.delete(id));
+    } catch (error) {
+      aviso(error.message, true);
+    }
+    modoSelCat = false;
+    await cargarCatalogo();
+    await estadoCatalogo();
+    return;
+  }
   const resultados = await Promise.allSettled(porBorrar.map((f) => api(`/api/favoritos/${f.id}`, { method: 'DELETE' })));
   const fallos = resultados.filter((r) => r.status === 'rejected').length;
   aviso(fallos ? `No se pudieron eliminar ${fallos}` : porBorrar.length === 1 ? 'Canción eliminada' : `${porBorrar.length} canciones eliminadas`, fallos > 0);
@@ -549,10 +721,14 @@ $('#btn-todas').onclick = () => {
 };
 $('#btn-borrar-sel').onclick = () => pedirBorrado(favs.filter((f) => seleccion.has(f.id)));
 
-mostrarEstadoClave();
-cargarCatalogo();
-cargarFavs();
-estadoCatalogo(); // si el servidor está descargando al arrancar, muestra el avance
+async function iniciarInterfaz() {
+  try { usuarioActual = await api('/api/auth/me', undefined, false); } catch { usuarioActual = null; }
+  mostrarEstadoClave();
+  await cargarCatalogo();
+  await cargarFavs();
+  await estadoCatalogo(); // si el servidor está descargando al arrancar, muestra el avance
+}
+iniciarInterfaz();
 </script>
 </body>
 </html>

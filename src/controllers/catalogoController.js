@@ -17,11 +17,23 @@ class CatalogoController {
 
   // 202 Accepted: la carga sigue en segundo plano; el avance se consulta en /estado.
   cargar(req, res) {
-    return this._responder(res, 202, async () => this.servicio.iniciarCarga(req.body?.modo));
+    return this._responder(res, 202, async () => this.servicio.iniciarCarga(req.body?.modo, req.usuario));
   }
 
   vaciar(req, res) {
-    return this._responder(res, 200, () => this.servicio.vaciar());
+    return this._responder(res, 200, () => this.servicio.vaciar(req.usuario));
+  }
+
+  actualizar(req, res) {
+    return this._responder(res, 200, () => this.servicio.actualizar(req.params.id, req.body, req.usuario));
+  }
+
+  eliminar(req, res) {
+    return this._responder(res, 200, () => this.servicio.eliminar(req.params.id, req.usuario));
+  }
+
+  eliminarSeleccion(req, res) {
+    return this._responder(res, 200, () => this.servicio.eliminarSeleccion(req.body?.ids, req.usuario));
   }
 
   async _responder(res, codigoExitoso, accion) {

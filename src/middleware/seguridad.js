@@ -37,19 +37,25 @@ function politicaCors(origenesPermitidos = []) {
 const METODOS_LIBRES = new Set(['GET', 'HEAD', 'OPTIONS']);
 const huella = (texto) => crypto.createHash('sha256').update(String(texto)).digest();
 
-// AUTENTICACIÓN: las operaciones que modifican datos (POST, PUT, DELETE) exigen la clave de la API
-// en el encabezado "x-api-key" (o "Authorization: Bearer <clave>"). Leer (GET) sigue siendo público.
+// AUTENTICACIÓN: las escrituras protegidas del catálogo exigen API key
+// en "x-api-key" (o "Authorization: Bearer <clave>"). Favoritos usa sesión de cliente.
 // - Compara con timingSafeEqual, para no filtrar información por el tiempo de respuesta.
 // - Tras `maxFallos` claves incorrectas desde una misma IP, responde 429 durante `ventanaMs`.
 function requerirApiKey({ apiKey, logger = console, maxFallos = 10, ventanaMs = 60000, ahora = () => Date.now() } = {}) {
   if (!apiKey) throw new Error('requerirApiKey necesita una apiKey (variable API_KEY)');
   const esperada = huella(apiKey);
   const fallos = new Map(); // ip -> { cuenta, desde }
+  const verificar = (presentada) => typeof presentada === 'string'
+    && presentada.length > 0
+    && crypto.timingSafeEqual(huella(presentada), esperada);
 
-  return (req, res, next) => {
-    if (METODOS_LIBRES.has(req.method)) return next();
+  const presentar = (req) => {
+    const encabezado = req.headers.authorization || '';
+    return req.headers['x-api-key'] || (encabezado.startsWith('Bearer ') ? encabezado.slice(7) : '');
+  };
+
+  function rechazar(req, res) {
     const ip = req.ip || req.socket?.remoteAddress || 'desconocida';
-
     let registro = fallos.get(ip);
     if (registro && ahora() - registro.desde > ventanaMs) {
       fallos.delete(ip);
@@ -59,21 +65,39 @@ function requerirApiKey({ apiKey, logger = console, maxFallos = 10, ventanaMs = 
       logger.warn(`Autenticación bloqueada por demasiados intentos fallidos desde ${ip}`);
       return res.status(429).json({ error: 'Demasiados intentos fallidos. Espera un minuto e inténtalo de nuevo' });
     }
-
-    const encabezado = req.headers.authorization || '';
-    const presentada = req.headers['x-api-key'] || (encabezado.startsWith('Bearer ') ? encabezado.slice(7) : '');
-    if (presentada && crypto.timingSafeEqual(huella(presentada), esperada)) {
-      fallos.delete(ip);
-      return next();
-    }
-
-    if (fallos.size > 1000) fallos.clear(); // evita que el mapa crezca sin límite
+    if (fallos.size > 1000) fallos.clear();
     const nuevo = registro || { cuenta: 0, desde: ahora() };
     nuevo.cuenta += 1;
     fallos.set(ip, nuevo);
     logger.warn(`Acceso denegado: ${req.method} ${req.originalUrl} desde ${ip}`);
     return res.status(401).json({ error: 'Autenticación requerida: envía tu clave en el encabezado x-api-key' });
+  }
+
+  function marcarAdmin(req) {
+    req.usuario = { usuario: 'admin (API key)', rol: 'admin' };
+  }
+
+  function exigirSiempre(req, res, next) {
+    if (verificar(presentar(req))) {
+      fallos.delete(req.ip || req.socket?.remoteAddress || 'desconocida');
+      marcarAdmin(req);
+      return next();
+    }
+    return rechazar(req, res);
+  }
+
+  const middleware = (req, res, next) => {
+    if (METODOS_LIBRES.has(req.method)) return next();
+    if (verificar(presentar(req))) {
+      fallos.delete(req.ip || req.socket?.remoteAddress || 'desconocida');
+      marcarAdmin(req);
+      return next();
+    }
+    return rechazar(req, res);
   };
+  middleware.verificar = verificar;
+  middleware.exigirSiempre = exigirSiempre;
+  return middleware;
 }
 
 module.exports = { cabecerasSeguridad, politicaCors, requerirApiKey };

@@ -2,7 +2,7 @@
   "info": {
     "name": "Reto 3 - Seguridad y errores (pruebas en vivo)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Ejecuta las peticiones EN ORDEN, una por una. Antes pega tu API_KEY en la variable apiKey de la colección."
+    "description": "Registra una cuenta con apiKey en /api/auth/registro para conservar el rol administrador y luego inicia sesión: la sesión admin permite gestionar catálogo, auditoría y cuentas (/api/auth/usuarios). La API_KEY directa sigue disponible para integraciones. Cada cuenta cliente tiene favoritos privados."
   },
   "variable": [
     {
@@ -73,7 +73,7 @@
             "favoritos"
           ]
         },
-        "description": "Resultado esperado: 401 Autenticación requerida",
+        "description": "Sin sesión cliente: 401. Antes de probar las siguientes operaciones de favoritos, inicia sesión con Reto2_Favoritos.",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
@@ -104,7 +104,7 @@
             "favoritos"
           ]
         },
-        "description": "Resultado esperado: 401 Autenticación requerida",
+        "description": "Sin sesión cliente: 401. La API key no concede acceso a favoritos.",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
@@ -112,7 +112,7 @@
       }
     },
     {
-      "name": "05 POST con clave correcta (crear)",
+      "name": "05 POST con sesión de cliente (la API key no se usa)",
       "request": {
         "method": "POST",
         "header": [
@@ -135,7 +135,7 @@
             "favoritos"
           ]
         },
-        "description": "Resultado esperado: 201 con el favorito creado y su id",
+        "description": "Resultado esperado: 201 con cookie de sesión cliente; x-api-key no autoriza favoritos.",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"id\": 3135556,\n  \"titulo\": \"Harder, Better, Faster, Stronger\",\n  \"artista\": \"Daft Punk\",\n  \"album\": \"Discovery\",\n  \"portada\": \"https://ejemplo.com/portada.jpg\",\n  \"duracion\": 224,\n  \"preview\": \"https://ejemplo.com/preview.mp3\",\n  \"enlace\": \"https://www.deezer.com/track/3135556\"\n}"
@@ -367,7 +367,7 @@
             "{{favoritoId}}"
           ]
         },
-        "description": "Resultado esperado: 401 Autenticación requerida",
+        "description": "Con sesión cliente puede editar sin API key. Sin sesión: 401.",
         "body": {
           "mode": "raw",
           "raw": "{\n  \"titulo\": \"Nuevo nombre\"\n}"
@@ -422,7 +422,7 @@
             "{{favoritoId}}"
           ]
         },
-        "description": "Resultado esperado: 401 Autenticación requerida"
+        "description": "Con sesión cliente puede eliminar sin API key. Sin sesión: 401."
       }
     },
     {
@@ -446,7 +446,7 @@
             "{{favoritoId}}"
           ]
         },
-        "description": "Resultado esperado: 200 Favorito eliminado"
+        "description": "Resultado esperado: 200 con sesión de cliente; la API key no se usa para favoritos."
       }
     },
     {

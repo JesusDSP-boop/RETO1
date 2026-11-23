@@ -7,7 +7,8 @@ module.exports = new EntitySchema({
   tableName: 'favoritos',
   columns: {
     id: { type: 'integer', primary: true, generated: true }, // clave propia, autoincremental
-    deezerId: { type: 'integer', unique: true },              // el "id" de Deezer; evita duplicados
+    deezerId: { type: 'integer' },                             // el "id" de Deezer
+    usuarioId: { type: 'integer', nullable: true },
     titulo: { type: 'varchar' },
     artista: { type: 'varchar' },
     album: { type: 'varchar', nullable: true },
@@ -19,4 +20,7 @@ module.exports = new EntitySchema({
     creadoEn: { type: 'datetime', createDate: true },
     actualizadoEn: { type: 'datetime', updateDate: true },
   },
+  indices: [
+    { name: 'UQ_favoritos_usuario_deezer', columns: ['usuarioId', 'deezerId'], unique: true },
+  ],
 });
